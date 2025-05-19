@@ -4,63 +4,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title }}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
-        .container { max-width: 1200px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1 { text-align: center; color: #333; }
-        .product-list { margin-bottom: 20px; }
-        .product-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 4px; }
-        .current-sale { border: 1px solid #ccc; padding: 15px; background-color: #e9e9e9; border-radius: 4px; }
-        .current-sale h2 { margin-top: 0; }
-        .total { font-size: 1.5em; font-weight: bold; text-align: right; margin-top: 10px; }
+        body {
+            background-color: #f8f9fa; /* Um cinza claro do Bootstrap */
+        }
+        .main-container {
+            margin-top: 20px;
+        }
+        .barcode-input-area {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .current-sale-area {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: 300px; /* Para dar um espaço visual */
+        }
+        #saleItemsList {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        #saleItemsList li {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        #saleItemsList li:last-child {
+            border-bottom: none;
+        }
+        .sale-total-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #343a40; /* Cor escura do Bootstrap */
+        }
+        .total-display {
+            font-size: 2em;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>{{ page_title }}</h1>
+    <div class="container main-container">
+        <header class="text-center mb-4">
+            <h1>{{ page_title }}</h1>
+        </header>
 
-        <div class="product-search-area">
-            <h2>Buscar Produto</h2>
-            <input type="text" id="productSearch" placeholder="Digite nome ou código do produto...">
-            <!-- Aqui listaremos os resultados da busca ou todos os produtos -->
-        </div>
+        <div class="row">
+            <!-- Área de Entrada do Código de Barras e Lista de Produtos (se necessário) -->
+            <div class="col-md-6">
+                <div class="barcode-input-area">
+                    <h2 class="h4">Registrar Produto</h2>
+                    <div class="mb-3">
+                        <label for="barcodeScanInput" class="form-label">Código de Barras / Código Interno</label>
+                        <input type="text" class="form-control form-control-lg" id="barcodeScanInput" placeholder="Leia o código de barras ou digite o código" autofocus>
+                    </div>
+                    <button class="btn btn-primary w-100" id="addProductByCode">Adicionar Produto</button>
+                </div>
 
-        <div class="product-list">
-            <h3>Produtos Disponíveis (Exemplo inicial)</h3>
-            {% if products %}
-                <ul>
-                    {% for product in products %}
-                        <li class="product-item">
-                            {{ product.name }} - R$ {{ product.price }}
-                            (Código: {{ product.internal_code }})
-                            <button class="add-to-sale" data-product-id="{{ product.id }}">Adicionar</button>
+                <!-- Opcional: Área para exibir resultados de busca ou lista de produtos mais vendidos -->
+                <!--
+                <div class="mt-3">
+                    <h4>Produtos Frequentes / Resultados da Busca:</h4>
+                    <ul id="quickProductList" class="list-group">
+                         Exemplo de item:
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Coca Cola - R$ 5.00
+                            <button class="btn btn-sm btn-outline-success add-to-sale" data-product-id="1">Adicionar</button>
                         </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>Nenhum produto cadastrado ainda.</p>
-            {% endif %}
-        </div>
-
-        <div class="current-sale">
-            <h2>Venda Atual</h2>
-            <ul id="saleItemsList">
-                <!-- Itens da venda serão adicionados aqui via JavaScript -->
-            </ul>
-            <div class="total">
-                Total: R$ <span id="saleTotal">0.00</span>
+                    </ul>
+                </div>
+                -->
             </div>
-            <button id="finalizeSale">Finalizar Venda</button>
+
+            <!-- Área da Venda Atual -->
+            <div class="col-md-6">
+                <div class="current-sale-area">
+                    <h2 class="h4">Venda Atual</h2>
+                    <ul id="saleItemsList" class="mb-3">
+                        <!-- Itens da venda serão adicionados aqui via JavaScript -->
+                        <li class="text-muted text-center" id="emptySaleMessage">Nenhum item na venda.</li>
+                    </ul>
+                    <div class="sale-total-section">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="h5">TOTAL:</span>
+                            <span class="total-display text-success">R$ <span id="saleTotal">0.00</span></span>
+                        </div>
+                        <button class="btn btn-success btn-lg w-100 mt-3" id="finalizeSale">Finalizar Venda</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Bootstrap JS Bundle (Popper.js incluído) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
     <script>
         // Em breve, nosso JavaScript para interatividade!
         console.log("Página de vendas carregada.");
-        // Exemplo: pegar o produto que você cadastrou
-        {% for product in products %}
-            console.log("Produto disponível: {{ product.name|escapejs }}, Preço: {{ product.price }}");
-        {% endfor %}
+
+        // Lógica para focar no campo de código de barras ao carregar a página
+        document.addEventListener('DOMContentLoaded', function() {
+            const barcodeInput = document.getElementById('barcodeScanInput');
+            if (barcodeInput) {
+                barcodeInput.focus();
+            }
+
+            // Exemplo de como você pode acessar os produtos passados pela view (se ainda precisar)
+            // Isso não será mais exibido diretamente na lista inicial, mas pode ser usado para buscas
+            const productsData = [
+                {% for product in products %}
+                {
+                    id: "{{ product.id }}",
+                    name: "{{ product.name|escapejs }}",
+                    price: "{{ product.price }}",
+                    internal_code: "{{ product.internal_code|escapejs }}",
+                    barcode: "{{ product.barcode|escapejs }}"
+                },
+                {% endfor %}
+            ];
+            console.log("Dados dos produtos disponíveis para JS:", productsData);
+        });
     </script>
 </body>
 </html>
