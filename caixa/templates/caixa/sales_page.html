@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 1200px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; }
+        .product-list { margin-bottom: 20px; }
+        .product-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+        .current-sale { border: 1px solid #ccc; padding: 15px; background-color: #e9e9e9; border-radius: 4px; }
+        .current-sale h2 { margin-top: 0; }
+        .total { font-size: 1.5em; font-weight: bold; text-align: right; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ page_title }}</h1>
+
+        <div class="product-search-area">
+            <h2>Buscar Produto</h2>
+            <input type="text" id="productSearch" placeholder="Digite nome ou código do produto...">
+            <!-- Aqui listaremos os resultados da busca ou todos os produtos -->
+        </div>
+
+        <div class="product-list">
+            <h3>Produtos Disponíveis (Exemplo inicial)</h3>
+            {% if products %}
+                <ul>
+                    {% for product in products %}
+                        <li class="product-item">
+                            {{ product.name }} - R$ {{ product.price }}
+                            (Código: {{ product.internal_code }})
+                            <button class="add-to-sale" data-product-id="{{ product.id }}">Adicionar</button>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Nenhum produto cadastrado ainda.</p>
+            {% endif %}
+        </div>
+
+        <div class="current-sale">
+            <h2>Venda Atual</h2>
+            <ul id="saleItemsList">
+                <!-- Itens da venda serão adicionados aqui via JavaScript -->
+            </ul>
+            <div class="total">
+                Total: R$ <span id="saleTotal">0.00</span>
+            </div>
+            <button id="finalizeSale">Finalizar Venda</button>
+        </div>
+    </div>
+
+    <script>
+        // Em breve, nosso JavaScript para interatividade!
+        console.log("Página de vendas carregada.");
+        // Exemplo: pegar o produto que você cadastrou
+        {% for product in products %}
+            console.log("Produto disponível: {{ product.name|escapejs }}, Preço: {{ product.price }}");
+        {% endfor %}
+    </script>
+</body>
+</html>
