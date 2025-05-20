@@ -37,6 +37,13 @@ class Sale(models.Model):
     def __str__(self):
         return f"Venda #{self.id} - R$ {self.total_amount} ({self.created_at.strftime('%d/%m/%Y %H:%M')})"
 
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding # Verifica se é uma nova instância
+        super().save(*args, **kwargs) # Chama o método save original
+        if is_new:
+            print(f"CONSOLE (BACKEND): Nova Venda #{self.id} salva no banco de dados. Total: {self.total_amount}, Pagamento: {self.payment_method}")
+        else:
+            print(f"CONSOLE (BACKEND): Venda #{self.id} atualizada no banco de dados.")
 
 class SaleItem(models.Model):
     sale = models.ForeignKey(
@@ -76,7 +83,14 @@ class SaleItem(models.Model):
 
     def save(self, *args, **kwargs):
         # Calcula o subtotal automaticamente antes de salvar, se não for fornecido
+        print(f"CONSOLE (BACKEND): Preparando para salvar SaleItem. Produto: {self.product.name if self.product else 'N/A'}, Quantidade: {self.quantity}")
         if not self.subtotal:
             self.subtotal = self.quantity * self.unit_price
-        super().save(*args, **kwargs)
+            print(f"CONSOLE (BACKEND): Subtotal do SaleItem calculado: {self.subtotal}")
 
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        if is_new:
+            print(f"CONSOLE (BACKEND): Novo SaleItem para Venda #{self.sale.id} salvo no banco. Produto: {self.product.name}, Subtotal: {self.subtotal}")
+        else:
+            print(f"CONSOLE (BACKEND): SaleItem para Venda #{self.sale.id} atualizado no banco.")

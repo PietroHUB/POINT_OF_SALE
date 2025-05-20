@@ -223,8 +223,51 @@
             function processPaymentSelection(method) {
                 console.log("CONSOLE: Método de pagamento selecionado:", method);
                 if (finalizeSaleModalInstance) finalizeSaleModalInstance.hide();
-                // Aqui, no futuro, você enviaria os dados da venda e o método de pagamento para o backend.
-                clearCurrentSale(); // Limpa a venda atual após selecionar o pagamento
+
+                // CONSOLE LOG ADICIONADO AQUI:
+                console.log("CONSOLE (FRONTEND): Preparando para enviar dados da venda para o backend.");
+                console.log("CONSOLE (FRONTEND): Itens da venda:", JSON.stringify(saleItemsArray, null, 2)); // Mostra os itens de forma legível
+                console.log("CONSOLE (FRONTEND): Total da venda:", currentSaleTotal.toFixed(2));
+                console.log("CONSOLE (FRONTEND): Forma de pagamento:", method);
+
+                // Mova o bloco de preparação e envio de dados para DENTRO desta função
+                // Prepara os dados para enviar ao backend
+                const saleData = {
+                        total_amount: currentSaleTotal.toFixed(2),
+                        payment_method: method, // 'method' agora está no escopo correto
+                        items: saleItemsArray.map(item => ({ // Mapeia para enviar apenas os dados necessários
+                            productId: item.productId,
+                            quantity: item.quantity,
+                            price: item.price.toFixed(2) // Preço unitário no momento da venda
+                            // O backend calculará o subtotal do item se necessário
+                        }))
+                    };
+
+                console.log("CONSOLE (FRONTEND): Enviando para o backend:", JSON.stringify(saleData, null, 2));
+
+                // Envia os dados para o backend usando Fetch API
+                fetch("{% url 'sales:finalize_sale' %}", { // Usa a tag de URL do Django para obter o caminho correto
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // 'X-CSRFToken': '{{ csrf_token }}', // Necessário se CSRF não estiver isento na view
+                        },
+                        body: JSON.stringify(saleData)
+                    })
+                    .then(response => response.json()) // Converte a resposta do backend para JSON
+                    .then(data => {
+                        console.log("CONSOLE (FRONTEND): Resposta do backend:", data);
+                        if (data.status === 'success') {
+                            alert(`Venda #${data.sale_id} finalizada com sucesso!`);
+                            clearCurrentSale(); // Limpa a venda no frontend APÓS sucesso do backend
+                        } else {
+                            alert(`Erro ao finalizar venda: ${data.message || 'Erro desconhecido.'}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("CONSOLE (FRONTEND): Erro ao enviar venda para o backend:", error);
+                        alert("Erro de comunicação ao finalizar a venda. Verifique o console.");
+                    });
             }
 
             function updateSaleTotalOnScreen() {
