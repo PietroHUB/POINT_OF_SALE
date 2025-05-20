@@ -30,6 +30,8 @@
         #saleItemsList {
             list-style-type: none;
             padding-left: 0;
+            max-height: 250px; /* Defina a altura máxima desejada para a lista */
+            overflow-y: auto;  /* Adiciona scroll vertical apenas se necessário */
         }
         #saleItemsList li {
             padding: 10px;
@@ -137,7 +139,16 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Conteúdo para finalização da venda (pagamento, troco, etc.) virá aqui.</p>
+                    <h5 class="mb-3">Selecione a Forma de Pagamento:</h5>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-info btn-lg payment-option-btn" data-payment-method="Pix" data-key="1">(1) Pix</button>
+                        <button type="button" class="btn btn-success btn-lg payment-option-btn" data-payment-method="Dinheiro" data-key="2">(2) Dinheiro</button>
+                        <button type="button" class="btn btn-warning btn-lg payment-option-btn" data-payment-method="Cartão de Débito" data-key="3">(3) Cartão de Débito</button>
+                        <button type="button" class="btn btn-danger btn-lg payment-option-btn" data-payment-method="Cartão de Crédito" data-key="4">(4) Cartão de Crédito</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar Venda</button>
                 </div>
             </div>
         </div>
@@ -186,13 +197,57 @@
             const confirmQuantityButton = document.getElementById('confirmQuantityButton');
             const currentPendingQuantitySpan = document.getElementById('currentPendingQuantity'); // Span para mostrar a quantidade pendente no botão
 
+            // Elementos do Modal de Finalização de Venda
+            const finalizeSaleModalElement = document.getElementById('finalizeSaleModal');
+            const finalizeSaleModalInstance = finalizeSaleModalElement ? new bootstrap.Modal(finalizeSaleModalElement) : null;
+            const paymentOptionButtons = document.querySelectorAll('.payment-option-btn'); // Seleciona todos os botões de opção de pagamento
+
             let currentSaleTotal = 0.00;
-            // let saleItemsArray = []; // Para guardar os objetos dos produtos na venda, se necessário para finalizar
+            let saleItemsArray = []; // Array para armazenar os objetos dos produtos na venda atual
+            let nextSaleItemId = 1; // Contador para gerar IDs únicos para os itens da venda
             let pendingQuantity = 1; // Variável para armazenar a quantidade definida pelo modal
+
+            function clearCurrentSale() {
+                console.log("CONSOLE: Limpando venda atual.");
+                saleItemsArray = [];
+                currentSaleTotal = 0.00;
+                nextSaleItemId = 1;
+                pendingQuantity = 1;
+
+                updateSaleTotalOnScreen();
+                renderSaleItems(); // Isso mostrará a mensagem de "Nenhum item"
+                if (currentPendingQuantitySpan) currentPendingQuantitySpan.textContent = pendingQuantity;
+                if (barcodeInput) barcodeInput.focus();
+            }
+
+            function processPaymentSelection(method) {
+                console.log("CONSOLE: Método de pagamento selecionado:", method);
+                if (finalizeSaleModalInstance) finalizeSaleModalInstance.hide();
+                // Aqui, no futuro, você enviaria os dados da venda e o método de pagamento para o backend.
+                clearCurrentSale(); // Limpa a venda atual após selecionar o pagamento
+            }
 
             function updateSaleTotalOnScreen() {
                 saleTotalSpan.textContent = currentSaleTotal.toFixed(2).replace('.', ',');
                 console.log("CONSOLE: Total da venda atualizado na tela para: R$", currentSaleTotal.toFixed(2));
+            }
+
+            function renderSaleItems() {
+                console.log("CONSOLE: Renderizando itens da venda.");
+                saleItemsList.innerHTML = ''; // 1. Limpa a lista visual atual
+
+                if (saleItemsArray.length === 0) { // 2. Verifica se há itens no array
+                    if(emptySaleMessage) emptySaleMessage.style.display = 'block'; // Mostra a mensagem se a lista estiver vazia
+                    console.log("CONSOLE: Nenhum item na venda para renderizar.");
+                    return; // Sai da função se não há itens
+                }
+                if(emptySaleMessage) emptySaleMessage.style.display = 'none'; // Esconde a mensagem se houver itens
+
+                // 3. Adiciona cada item do array de volta na lista visual
+                saleItemsArray.forEach(item => {
+                    saleItemsList.appendChild(item.listItemElement); // Adiciona o elemento <li> previamente criado
+                });
+                console.log("CONSOLE: Itens da venda renderizados.");
             }
 
             function addProductToSale(product) {
@@ -211,18 +266,45 @@
                 // const productPriceFormatted = parseFloat(product.price).toFixed(2).replace('.', ','); // Não precisamos mais do preço unitário formatado aqui
                 const itemSubtotal = parseFloat(product.price) * pendingQuantity;
                 const itemSubtotalFormatted = itemSubtotal.toFixed(2).replace('.', ',');
+                const saleItemId = nextSaleItemId++; // Gera um ID único para este item na venda
+
+                listItem.setAttribute('data-sale-item-id', saleItemId); // Adiciona o ID único ao elemento <li>
 
                 listItem.innerHTML = `
-                    <span>${productBarcode}</span>
-                    <span class="mx-2">${product.name}</span>
-                    <span class="badge bg-primary rounded-pill me-2">${pendingQuantity}x</span>
-                    <span>R$ ${itemSubtotalFormatted}</span>
+                    <div class="flex-grow-1"> <!-- Div para o conteúdo do item -->
+                        <span>${productBarcode}</span> |
+                        <span class="mx-1">${product.name}</span> |
+                        <span class="badge bg-info rounded-pill me-1">${pendingQuantity}x</span> |
+                        <span>R$ ${itemSubtotalFormatted}</span>
+                    </div>
+                    <!-- Botão de Remover -->
+                    <button class="btn btn-danger btn-sm remove-sale-item-btn" data-remove-id="${saleItemId}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                        </svg>
+                    </button>
                 `;
 
-                // Futuramente, podemos adicionar um data-attribute com o ID do produto e um botão de remover
-                // listItem.setAttribute('data-product-id', product.id);
-                saleItemsList.appendChild(listItem);
+                // Adiciona o item ao array de itens da venda
+                saleItemsArray.push({
+                    id: saleItemId,                 // ID único para este item na venda
+                    productId: product.id,          // ID do produto (do productsData)
+                    productName: product.name,
+                    quantity: pendingQuantity,
+                    price: parseFloat(product.price), // Preço unitário
+                    subtotal: itemSubtotal,         // Subtotal calculado
+                    listItemElement: listItem       // Referência ao elemento <li> criado
+                });
+
+                renderSaleItems(); // Chama a função para redesenhar a lista visual
                 console.log("CONSOLE: Produto", product.name, "adicionado à lista visual da venda.");
+
+                // Rolar a lista de itens da venda para o final
+                if (saleItemsList) {
+                    saleItemsList.scrollTop = saleItemsList.scrollHeight;
+                    console.log("CONSOLE: Lista de itens da venda rolada para o final.");
+                }
 
                 // Atualiza o valor total da venda
                 currentSaleTotal += itemSubtotal;
@@ -237,6 +319,29 @@
                 pendingQuantity = 1;
                 if(currentPendingQuantitySpan) currentPendingQuantitySpan.textContent = pendingQuantity;
                 console.log("CONSOLE: Quantidade pendente resetada para 1.");
+            }
+
+            // Função para remover um item da venda
+            function removeSaleItem(saleItemIdToRemove) {
+                console.log("CONSOLE: Tentando remover item da venda com ID:", saleItemIdToRemove);
+                // 1. Encontra o índice do item no array pelo seu ID único
+                const itemIndex = saleItemsArray.findIndex(item => item.id === saleItemIdToRemove);
+
+                if (itemIndex > -1) { // 2. Se o item foi encontrado no array
+                    const removedItem = saleItemsArray.splice(itemIndex, 1)[0]; // Remove o item do array e o armazena
+                    console.log("CONSOLE: Item removido do array:", removedItem);
+
+                    // 3. Subtrai o subtotal do item removido do total geral
+                    currentSaleTotal -= removedItem.subtotal;
+                    updateSaleTotalOnScreen(); // Atualiza o total na tela
+
+                    renderSaleItems(); // 4. Re-renderiza a lista visual sem o item removido
+
+                    console.log("CONSOLE: Item removido da tela. Novo total:", currentSaleTotal.toFixed(2));
+                    if (barcodeInput) barcodeInput.focus(); // Volta o foco para o input de código de barras
+                } else {
+                    console.log("CONSOLE: Item com ID", saleItemIdToRemove, "não encontrado no array saleItemsArray.");
+                }
             }
 
             function handleAddProductClick() {
@@ -285,10 +390,75 @@
                 });
             }
 
+            // Delegação de evento para os botões de remover item
+            // Adicionamos o listener ao elemento pai (saleItemsList)
+            if (saleItemsList) {
+                saleItemsList.addEventListener('click', function(event) {
+                    // Verifica se o clique foi em um botão com a classe 'remove-sale-item-btn' ou dentro dele
+                    const removeButton = event.target.closest('.remove-sale-item-btn');
+                    if (removeButton) { // Se um botão de remover foi clicado
+                        const saleItemId = parseInt(removeButton.dataset.removeId, 10); // Pega o ID do item a ser removido do atributo data-remove-id
+                        console.log("CONSOLE: Botão remover clicado para o item ID:", saleItemId);
+                        removeSaleItem(saleItemId); // Chama a função de remoção
+                    }
+                });
+            }
+
+            // Adiciona um listener global para a tecla 'Delete'
+            //para funcionar, como o cursor sempre fica no codigo de barras
+            //sugiro que a pessoa aperte tab e depois delete
+            document.addEventListener('keydown', function(event) {
+                // Verifica se a tecla pressionada é 'Delete' (ou 'Del' em alguns teclados)
+                // E verifica se o foco NÃO está em um campo de input de texto
+                // Isso evita que a tecla Delete funcione para remover itens enquanto o usuário está digitando em um campo
+                const isTextInput = event.target.tagName === 'INPUT' && event.target.type === 'text';
+                const isNumberInput = event.target.tagName === 'INPUT' && event.target.type === 'number';
+
+                // Lógica para a tecla Delete (remover último item)
+                if ((event.key === 'Delete' || event.key === 'Del') && !isTextInput && !isNumberInput) {
+                    console.log("CONSOLE: Tecla 'Delete' pressionada.");
+                    if (saleItemsArray.length > 0) {
+                        const lastItem = saleItemsArray[saleItemsArray.length - 1];
+                        removeSaleItem(lastItem.id);
+                        event.preventDefault();
+                    }
+                }
+
+                // Lógica para seleção de pagamento por teclado (1-4) quando o modal de finalização está visível
+                if (finalizeSaleModalElement && finalizeSaleModalElement.classList.contains('show')) {
+                    let selectedMethod = null;
+                    if (event.key === '1') selectedMethod = 'Pix';
+                    else if (event.key === '2') selectedMethod = 'Dinheiro';
+                    else if (event.key === '3') selectedMethod = 'Cartão de Débito';
+                    else if (event.key === '4') selectedMethod = 'Cartão de Crédito';
+
+                    if (selectedMethod) {
+                        event.preventDefault(); // Previne qualquer ação padrão da tecla numérica
+                        processPaymentSelection(selectedMethod);
+                    }
+                }
+            });
+
             if (finalizeSaleButton) {
                 finalizeSaleButton.addEventListener('click', function() {
                     console.log("CONSOLE: Botão 'Finalizar Venda' clicado.");
-                    alert("Funcionalidade de Finalizar Venda ainda não implementada.");
+                    if (saleItemsArray.length === 0) {
+                        alert("Não há itens na venda para finalizar.");
+                        return;
+                    }
+                    if (finalizeSaleModalInstance) {
+                        finalizeSaleModalInstance.show();
+                    }
+                });
+            }
+
+            // Adiciona listeners de clique para os botões de opção de pagamento
+            if (paymentOptionButtons) {
+                paymentOptionButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const selectedMethod = this.dataset.paymentMethod; // Pega o método do atributo data-payment-method
+                        processPaymentSelection(selectedMethod);
+                    });
                 });
             }
 
