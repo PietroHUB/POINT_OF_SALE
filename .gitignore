@@ -1,2 +1,5 @@
 /venv
 /pos_project
+*.pyc
+/caixa/__pycache__
+/products/__pycache__

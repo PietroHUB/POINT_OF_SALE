@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'sales.apps.SalesConfig',
     'caixa.apps.CaixaConfig',
     'products.apps.ProductsConfig',
     'django.contrib.admin',
