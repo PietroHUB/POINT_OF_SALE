@@ -27,6 +27,6 @@ def sales_page_view(request):
     """
     context = {
         'products': products,
-        'page_title': 'Caixa - Ponto de Venda'
+        'page_title': 'Ponto de Venda'
     }
     return render(request, 'caixa/sales_page.html', context)

@@ -61,10 +61,14 @@
                 <div class="barcode-input-area">
                     <h2 class="h4">Registrar Produto</h2>
                     <div class="mb-3">
-                        <label for="barcodeScanInput" class="form-label">Código de Barras / Código Interno</label>
+                        <label for="barcodeScanInput" class="form-label">Código de Barras / Código Interno:</label>
                         <input type="text" class="form-control form-control-lg" id="barcodeScanInput" placeholder="Leia o código de barras ou digite o código" autofocus>
                     </div>
-                    <button class="btn btn-primary w-100" id="addProductByCode">Adicionar Produto</button>
+                    <!-- Botões de Quantidade e Adicionar Produto -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button class="btn btn-secondary me-md-2" type="button" id="quantityButton" data-bs-toggle="modal" data-bs-target="#quantityModal">Quantidade (<span id="currentPendingQuantity">1</span>)</button>
+                        <button class="btn btn-primary flex-grow-1" type="button" id="addProductByCode">Adicionar Produto</button>
+                    </div>
                 </div>
 
                 <!-- Opcional: Área para exibir resultados de busca ou lista de produtos mais vendidos -->
@@ -97,6 +101,43 @@
                         </div>
                         <button class="btn btn-success btn-lg w-100 mt-3" id="finalizeSale">Finalizar Venda</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Quantidade -->
+    <div class="modal fade" id="quantityModal" tabindex="-1" aria-labelledby="quantityModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="quantityModalLabel">Definir Quantidade</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="quantityInput" class="form-label">Quantidade:</label>
+                        <input type="number" class="form-control form-control-lg" id="quantityInput" value="1" min="1">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmQuantityButton">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Finalização de Venda (Placeholder por enquanto) -->
+     <div class="modal fade" id="finalizeSaleModal" tabindex="-1" aria-labelledby="finalizeSaleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="finalizeSaleModalLabel">Finalizar Venda</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Conteúdo para finalização da venda (pagamento, troco, etc.) virá aqui.</p>
                 </div>
             </div>
         </div>
@@ -135,10 +176,19 @@
             const addProductButton = document.getElementById('addProductByCode');
             const saleItemsList = document.getElementById('saleItemsList');
             const saleTotalSpan = document.getElementById('saleTotal');
+            const finalizeSaleButton = document.getElementById('finalizeSale');
             const emptySaleMessage = document.getElementById('emptySaleMessage');
+
+            // Elementos do Modal de Quantidade
+            const quantityModalElement = document.getElementById('quantityModal');
+            const quantityModal = quantityModalElement ? new bootstrap.Modal(quantityModalElement) : null; // Instância do modal Bootstrap
+            const quantityInput = document.getElementById('quantityInput');
+            const confirmQuantityButton = document.getElementById('confirmQuantityButton');
+            const currentPendingQuantitySpan = document.getElementById('currentPendingQuantity'); // Span para mostrar a quantidade pendente no botão
 
             let currentSaleTotal = 0.00;
             // let saleItemsArray = []; // Para guardar os objetos dos produtos na venda, se necessário para finalizar
+            let pendingQuantity = 1; // Variável para armazenar a quantidade definida pelo modal
 
             function updateSaleTotalOnScreen() {
                 saleTotalSpan.textContent = currentSaleTotal.toFixed(2).replace('.', ',');
@@ -156,21 +206,37 @@
 
                 // Cria o elemento li para a lista de itens da venda
                 const listItem = document.createElement('li');
-                listItem.className = 'list-group-item d-flex justify-content-between align-items-center'; // Estilo Bootstrap
-                listItem.textContent = `${product.name} - R$ ${parseFloat(product.price).toFixed(2).replace('.', ',')}`;
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                const productBarcode = product.barcode ? product.barcode : (product.internal_code ? product.internal_code : 'S/C'); // Usa barcode, senão internal_code, senão 'S/C' (Sem Código)
+                // const productPriceFormatted = parseFloat(product.price).toFixed(2).replace('.', ','); // Não precisamos mais do preço unitário formatado aqui
+                const itemSubtotal = parseFloat(product.price) * pendingQuantity;
+                const itemSubtotalFormatted = itemSubtotal.toFixed(2).replace('.', ',');
+
+                listItem.innerHTML = `
+                    <span>${productBarcode}</span>
+                    <span class="mx-2">${product.name}</span>
+                    <span class="badge bg-primary rounded-pill me-2">${pendingQuantity}x</span>
+                    <span>R$ ${itemSubtotalFormatted}</span>
+                `;
+
                 // Futuramente, podemos adicionar um data-attribute com o ID do produto e um botão de remover
                 // listItem.setAttribute('data-product-id', product.id);
                 saleItemsList.appendChild(listItem);
                 console.log("CONSOLE: Produto", product.name, "adicionado à lista visual da venda.");
 
                 // Atualiza o valor total da venda
-                currentSaleTotal += parseFloat(product.price);
+                currentSaleTotal += itemSubtotal;
                 updateSaleTotalOnScreen();
 
                 // Limpa o campo de input e foca nele novamente
                 barcodeInput.value = "";
                 barcodeInput.focus();
                 console.log("CONSOLE: Campo barcodeScanInput limpo e focado para o próximo item.");
+
+                // Resetar a quantidade pendente para 1 após adicionar o item
+                pendingQuantity = 1;
+                if(currentPendingQuantitySpan) currentPendingQuantitySpan.textContent = pendingQuantity;
+                console.log("CONSOLE: Quantidade pendente resetada para 1.");
             }
 
             function handleAddProductClick() {
@@ -197,15 +263,44 @@
                 }
             }
 
-            addProductButton.addEventListener('click', handleAddProductClick);
+            // --- Lógica do Modal de Quantidade ---
+            if (confirmQuantityButton) {
+                confirmQuantityButton.addEventListener('click', function() {
+                    console.log("CONSOLE: Botão 'OK' do modal de quantidade clicado.");
+                    const quantityValue = parseInt(quantityInput.value, 10);
+                    console.log("CONSOLE: Valor lido do input do modal:", quantityValue);
 
-            barcodeInput.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter' || event.keyCode === 13) { // keyCode é para navegadores mais antigos
-                    event.preventDefault(); // Previne o comportamento padrão do Enter (ex: submeter formulário se houver um)
-                    handleAddProductClick(); // Chama a mesma função do clique do botão
-                }
-            });
-            // Remova a segunda declaração de productsData daqui
+                    if (!isNaN(quantityValue) && quantityValue > 0) {
+                        pendingQuantity = quantityValue;
+                        if(currentPendingQuantitySpan) currentPendingQuantitySpan.textContent = pendingQuantity;
+                        console.log("CONSOLE: Quantidade pendente definida para:", pendingQuantity);
+                        if (quantityModal) quantityModal.hide();
+                        if (barcodeInput) barcodeInput.focus();
+                        console.log("CONSOLE: Modal de quantidade fechado. Foco no barcodeInput.");
+                    } else {
+                        console.log("CONSOLE: Quantidade inválida digitada no modal.");
+                        alert("Por favor, insira uma quantidade numérica válida e maior que zero.");
+                        if (quantityInput) quantityInput.select();
+                    }
+                });
+            }
+
+            if (finalizeSaleButton) {
+                finalizeSaleButton.addEventListener('click', function() {
+                    console.log("CONSOLE: Botão 'Finalizar Venda' clicado.");
+                    alert("Funcionalidade de Finalizar Venda ainda não implementada.");
+                });
+            }
+
+            if (addProductButton) addProductButton.addEventListener('click', handleAddProductClick);
+            if (barcodeInput) {
+                barcodeInput.addEventListener('keypress', function(event) {
+                    if (event.key === 'Enter' || event.keyCode === 13) {
+                        event.preventDefault();
+                        handleAddProductClick();
+                    }
+                });
+            }
         });
     </script>
 </body>
