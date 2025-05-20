@@ -20,6 +20,11 @@ render(request, 'caixa/sales_page.html', context): Renderiza o template HTML que
 # @login_required # Descomente se quiser que apenas usuários logados acessem
 def sales_page_view(request):
     products = Product.objects.all().order_by('name') # Pega todos os produtos ordenados por nome
+    """
+        select 
+            * 
+        from products_product
+    """
     context = {
         'products': products,
         'page_title': 'Caixa - Ponto de Venda'

@@ -107,16 +107,13 @@
     <script>
         // Em breve, nosso JavaScript para interatividade!
         console.log("Página de vendas carregada.");
-
-        // Lógica para focar no campo de código de barras ao carregar a página
+        
         document.addEventListener('DOMContentLoaded', function() {
-            const barcodeInput = document.getElementById('barcodeScanInput');
-            if (barcodeInput) {
-                barcodeInput.focus();
-            }
+            console.log("CONSOLE: DOM completamente carregado e parseado.");
 
-            // Exemplo de como você pode acessar os produtos passados pela view (se ainda precisar)
-            // Isso não será mais exibido diretamente na lista inicial, mas pode ser usado para buscas
+            const barcodeInput = document.getElementById('barcodeScanInput');
+
+            // Mova a declaração de productsData para cá, no início do DOMContentLoaded
             const productsData = [
                 {% for product in products %}
                 {
@@ -128,7 +125,87 @@
                 },
                 {% endfor %}
             ];
-            console.log("Dados dos produtos disponíveis para JS:", productsData);
+            console.log("CONSOLE: Dados dos produtos disponíveis para JS:", productsData); // Agora productsData está definida
+
+            if (barcodeInput) {
+                barcodeInput.focus();
+                console.log("CONSOLE: Foco definido no campo barcodeScanInput.");
+            }
+
+            const addProductButton = document.getElementById('addProductByCode');
+            const saleItemsList = document.getElementById('saleItemsList');
+            const saleTotalSpan = document.getElementById('saleTotal');
+            const emptySaleMessage = document.getElementById('emptySaleMessage');
+
+            let currentSaleTotal = 0.00;
+            // let saleItemsArray = []; // Para guardar os objetos dos produtos na venda, se necessário para finalizar
+
+            function updateSaleTotalOnScreen() {
+                saleTotalSpan.textContent = currentSaleTotal.toFixed(2).replace('.', ',');
+                console.log("CONSOLE: Total da venda atualizado na tela para: R$", currentSaleTotal.toFixed(2));
+            }
+
+            function addProductToSale(product) {
+                console.log("CONSOLE: Iniciando adição do produto à venda:", product.name);
+
+                // Esconde a mensagem de "Nenhum item" se ela estiver visível
+                if (emptySaleMessage && emptySaleMessage.style.display !== 'none') {
+                    emptySaleMessage.style.display = 'none';
+                    console.log("CONSOLE: Mensagem 'Nenhum item na venda' escondida.");
+                }
+
+                // Cria o elemento li para a lista de itens da venda
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center'; // Estilo Bootstrap
+                listItem.textContent = `${product.name} - R$ ${parseFloat(product.price).toFixed(2).replace('.', ',')}`;
+                // Futuramente, podemos adicionar um data-attribute com o ID do produto e um botão de remover
+                // listItem.setAttribute('data-product-id', product.id);
+                saleItemsList.appendChild(listItem);
+                console.log("CONSOLE: Produto", product.name, "adicionado à lista visual da venda.");
+
+                // Atualiza o valor total da venda
+                currentSaleTotal += parseFloat(product.price);
+                updateSaleTotalOnScreen();
+
+                // Limpa o campo de input e foca nele novamente
+                barcodeInput.value = "";
+                barcodeInput.focus();
+                console.log("CONSOLE: Campo barcodeScanInput limpo e focado para o próximo item.");
+            }
+
+            function handleAddProductClick() {
+                console.log("CONSOLE: Botão 'Adicionar Produto' ou Enter pressionado.");
+                const code = barcodeInput.value.trim();
+                console.log("CONSOLE: Código lido do input:", code);
+
+                if (code === "") {
+                    console.log("CONSOLE: Campo de código está vazio. Nenhuma ação.");
+                    alert("Por favor, insira ou leia um código de produto.");
+                    barcodeInput.focus();
+                    return;
+                }
+
+                const foundProduct = productsData.find(p => p.barcode === code || p.internal_code === code);
+
+                if (foundProduct) {
+                    console.log("CONSOLE: Produto encontrado:", foundProduct);
+                    addProductToSale(foundProduct);
+                } else {
+                    console.log("CONSOLE: Produto com código '"+ code +"' não encontrado.");
+                    alert(`Produto com código "${code}" não encontrado.`);
+                    barcodeInput.select(); // Seleciona o texto para fácil substituição
+                }
+            }
+
+            addProductButton.addEventListener('click', handleAddProductClick);
+
+            barcodeInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter' || event.keyCode === 13) { // keyCode é para navegadores mais antigos
+                    event.preventDefault(); // Previne o comportamento padrão do Enter (ex: submeter formulário se houver um)
+                    handleAddProductClick(); // Chama a mesma função do clique do botão
+                }
+            });
+            // Remova a segunda declaração de productsData daqui
         });
     </script>
 </body>
