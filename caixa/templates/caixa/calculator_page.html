@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 90vh; /* Centraliza verticalmente */
+        }
+        .calculator {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            width: 300px; /* Largura fixa para a calculadora */
+            text-align: center;
+        }
+        #display {
+            background-color: #e9ecef; /* Cinza claro */
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 2em;
+            text-align: right;
+            overflow-x: auto; /* Adiciona scroll horizontal se o número for muito longo */
+            white-space: nowrap; /* Impede quebra de linha */
+        }
+        /* Opcional: Estilo para botões visuais se você adicionar */
+        .calculator .btn { margin: 2px 0; } /* Ajuste de margem para botões */
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h1 class="h4 mb-3">{{ page_title }}</h1>
+        <div id="display">0</div>
+        
+        <!-- Botões Visuais da Calculadora -->
+        <div class="row g-2">
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="7">7</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="8">8</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="9">9</button></div>
+            <div class="col-3"><button class="btn btn-warning w-100" data-action="operator" data-value="/">/</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="4">4</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="5">5</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="6">6</button></div>
+            <div class="col-3"><button class="btn btn-warning w-100" data-action="operator" data-value="*">*</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="1">1</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="2">2</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="3">3</button></div>
+            <div class="col-3"><button class="btn btn-warning w-100" data-action="operator" data-value="-">-</button></div>
+            <div class="col-3"><button class="btn btn-danger w-100" data-action="clear">C</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-value="0">0</button></div>
+            <div class="col-3"><button class="btn btn-secondary w-100" data-action="decimal" data-value=".">.</button></div>
+            <div class="col-3"><button class="btn btn-warning w-100" data-action="operator" data-value="+">+</button></div>
+            <div class="col-12"><button class="btn btn-primary w-100" data-action="calculate">=</button></div>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS Bundle (Popper.js incluído) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const display = document.getElementById('display');
+            let displayValue = '0';
+            let firstOperand = null;
+            let operator = null;
+            let waitingForSecondOperand = false;
+
+            function updateDisplay() {
+                display.textContent = displayValue;
+            }
+
+            function inputDigit(digit) {
+                if (waitingForSecondOperand === true) {
+                    displayValue = digit;
+                    waitingForSecondOperand = false;
+                } else {
+                    // Evita múltiplos zeros no início
+                    displayValue = displayValue === '0' ? digit : displayValue + digit;
+                }
+                updateDisplay();
+            }
+
+            function inputDecimal(dot) {
+                // Impede múltiplos pontos decimais
+                if (!displayValue.includes(dot)) {
+                    displayValue += dot;
+                }
+                updateDisplay();
+            }
+
+            function handleOperator(nextOperator) {
+                const inputValue = parseFloat(displayValue);
+
+                if (operator && waitingForSecondOperand) {
+                    operator = nextOperator;
+                    return;
+                }
+
+                if (firstOperand === null) {
+                    firstOperand = inputValue;
+                } else if (operator) {
+                    const result = calculate(firstOperand, inputValue, operator);
+
+                    displayValue = `${parseFloat(result.toFixed(7))}`; // Limita casas decimais para evitar imprecisão
+                    firstOperand = result;
+                }
+
+                waitingForSecondOperand = true;
+                operator = nextOperator;
+                updateDisplay();
+            }
+
+            function calculate(firstOperand, secondOperand, operator) {
+                if (operator === '+') return firstOperand + secondOperand;
+                if (operator === '-') return firstOperand - secondOperand;
+                if (operator === '*') return firstOperand * secondOperand;
+                if (operator === '/') return firstOperand / secondOperand;
+
+                return secondOperand; // Em caso de operador inválido ou ausente
+            }
+
+            function resetCalculator() {
+                displayValue = '0';
+                firstOperand = null;
+                operator = null;
+                waitingForSecondOperand = false;
+                updateDisplay();
+            }
+
+            function handleEquals() {
+                 const inputValue = parseFloat(displayValue);
+
+                 if (firstOperand === null || operator === null || waitingForSecondOperand) {
+                     // Nada para calcular ainda ou já calculou
+                     return;
+                 }
+
+                 const result = calculate(firstOperand, inputValue, operator);
+
+                 displayValue = `${parseFloat(result.toFixed(7))}`;
+                 firstOperand = null; // Reset para nova operação
+                 operator = null;
+                 waitingForSecondOperand = true; // Próximo dígito limpa a tela
+                 updateDisplay();
+            }
+
+            function handleBackspace() {
+                if (displayValue.length === 1 || (displayValue.length === 2 && displayValue.startsWith('-'))) {
+                    displayValue = '0';
+                } else {
+                    displayValue = displayValue.slice(0, -1);
+                }
+                updateDisplay();
+            }
+
+            // Event Listener para Teclado
+            document.addEventListener('keydown', function(event) {
+                const key = event.key;
+                console.log("Tecla pressionada:", key); // Para debug
+
+                // Verifica se a tecla é um número (0-9)
+                if (/\d/.test(key)) {
+                    inputDigit(key);
+                    event.preventDefault(); // Previne ação padrão (ex: scroll)
+                }
+                // Verifica se a tecla é um operador (+, -, *, /)
+                else if (['+', '-', '*', '/'].includes(key)) {
+                    handleOperator(key);
+                    event.preventDefault();
+                }
+                // Verifica se a tecla é o ponto decimal
+                else if (key === '.') {
+                    inputDecimal(key);
+                    event.preventDefault();
+                }
+                // Verifica se a tecla é Enter (para =)
+                else if (key === 'Enter') {
+                    handleEquals();
+                    event.preventDefault();
+                }
+                 // Verifica se a tecla é Backspace
+                else if (key === 'Backspace') {
+                    handleBackspace();
+                    event.preventDefault();
+                }
+                 // Verifica se a tecla é Escape (para limpar)
+                else if (key === 'Escape') {
+                    resetCalculator();
+                    event.preventDefault();
+                }
+                // Opcional: Adicionar suporte para a tecla 'c' para limpar
+                else if (key === 'c' || key === 'C') {
+                     resetCalculator();
+                     event.preventDefault();
+                }
+            });
+
+            // Event Listener para Cliques nos Botões Visuais
+            const buttons = document.querySelectorAll('.calculator .btn');
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const action = this.dataset.action;
+                    const value = this.dataset.value;
+
+                    if (action === 'operator') {
+                        handleOperator(value);
+                    } else if (action === 'decimal') {
+                        inputDecimal(value);
+                    } else if (action === 'clear') {
+                        resetCalculator();
+                    } else if (action === 'calculate') {
+                        handleEquals();
+                    } else if (value) { // Se for um dígito (não tem data-action, mas tem data-value)
+                        inputDigit(value);
+                    }
+                    // Opcional: dar foco ao display ou a um elemento pai para manter a interatividade do teclado
+                    // display.focus(); // O display não é focável por padrão
+                    // document.body.focus(); // Para garantir que o keydown ainda funcione
+                });
+            });
+
+
+            // Inicializa o display
+            updateDisplay();
+        });
+    </script>
+</body>
+</html>

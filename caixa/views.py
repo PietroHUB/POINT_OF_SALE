@@ -1,6 +1,8 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required # Para proteger a página
 from products.models import Product # Vamos precisar dos produtos
+from django.http import HttpResponse # Importe HttpResponse se necessário, mas render já retorna um
+
 """
 
 Explicação:

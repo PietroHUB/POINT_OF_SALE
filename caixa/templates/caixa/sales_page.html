@@ -66,6 +66,13 @@
                         <label for="barcodeScanInput" class="form-label">Código de Barras / Código Interno:</label>
                         <input type="text" class="form-control form-control-lg" id="barcodeScanInput" placeholder="Leia o código de barras ou digite o código" autofocus>
                     </div>
+                    <!-- Botão para Abrir Calculadora -->
+                    <div class="d-grid gap-2 mb-3">
+                        <!-- Alterado para ser um botão que abre um modal -->
+                        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#calculatorModal">
+                            Abrir Calculadora de Troco
+                        </button>
+                    </div>
                     <!-- Botões de Quantidade e Adicionar Produto -->
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <button class="btn btn-secondary me-md-2" type="button" id="quantityButton" data-bs-toggle="modal" data-bs-target="#quantityModal">Quantidade (<span id="currentPendingQuantity">1</span>)</button>
@@ -149,10 +156,53 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar Venda</button>
+                    <!-- Botão da calculadora foi movido para a área principal -->
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Modal da Calculadora -->
+    <div class="modal fade" id="calculatorModal" tabindex="-1" aria-labelledby="calculatorModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-sm"> <!-- modal-sm para uma calculadora menor -->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="calculatorModalLabel">Calculadora</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Conteúdo da Calculadora (copiado de calculator_page.html) -->
+                    <div class="calculator-modal-content"> <!-- Nova classe para escopo -->
+                        <div id="calculatorDisplay" class="mb-3" style="background-color: #e9ecef; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-size: 2em; text-align: right; overflow-x: auto; white-space: nowrap;">0</div>
+                        <div class="row g-2">
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="7">7</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="8">8</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="9">9</button></div>
+                            <div class="col-3"><button class="btn btn-warning w-100 calc-btn" data-action="operator" data-value="/">/</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="4">4</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="5">5</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="6">6</button></div>
+                            <div class="col-3"><button class="btn btn-warning w-100 calc-btn" data-action="operator" data-value="*">*</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="1">1</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="2">2</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="3">3</button></div>
+                            <div class="col-3"><button class="btn btn-warning w-100 calc-btn" data-action="operator" data-value="-">-</button></div>
+                            <div class="col-3"><button class="btn btn-danger w-100 calc-btn" data-action="clear">C</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-value="0">0</button></div>
+                            <div class="col-3"><button class="btn btn-secondary w-100 calc-btn" data-action="decimal" data-value=".">.</button></div>
+                            <div class="col-3"><button class="btn btn-warning w-100 calc-btn" data-action="operator" data-value="+">+</button></div>
+                            <div class="col-12"><button class="btn btn-primary w-100 calc-btn" data-action="calculate">=</button></div>
+                        </div>
+                    </div>
+                    <!-- Fim do Conteúdo da Calculadora -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Bootstrap JS Bundle (Popper.js incluído) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
@@ -201,6 +251,12 @@
             const finalizeSaleModalElement = document.getElementById('finalizeSaleModal');
             const finalizeSaleModalInstance = finalizeSaleModalElement ? new bootstrap.Modal(finalizeSaleModalElement) : null;
             const paymentOptionButtons = document.querySelectorAll('.payment-option-btn'); // Seleciona todos os botões de opção de pagamento
+
+            // Elementos do Modal da Calculadora
+            const calculatorModalElement = document.getElementById('calculatorModal');
+            // const calculatorModalInstance = calculatorModalElement ? new bootstrap.Modal(calculatorModalElement) : null; // Instância se precisar controlar via JS
+            let calculatorKeydownListener = null; // Variável para armazenar a função do listener de teclado
+
 
             let currentSaleTotal = 0.00;
             let saleItemsArray = []; // Array para armazenar os objetos dos produtos na venda atual
@@ -515,6 +571,220 @@
                         handleAddProductClick();
                     }
                 });
+            }
+
+            // --- Lógica da Calculadora (Movida e Adaptada) ---
+            if (calculatorModalElement) {
+                const calculatorDisplay = calculatorModalElement.querySelector('#calculatorDisplay');
+                let calcDisplayValue = '0';
+                let calcFirstOperand = null;
+                let calcOperator = null;
+                let calcWaitingForSecondOperand = false;
+                let calcResultDisplayed = false; // Flag para saber se um resultado está no display
+
+
+                function calcUpdateDisplay() {
+                    if (calculatorDisplay) calculatorDisplay.textContent = calcDisplayValue;
+                }
+
+                function calcInputDigit(digit) {
+                    if (calcWaitingForSecondOperand === true) {
+                        calcDisplayValue = digit;
+                        calcWaitingForSecondOperand = false;
+                    } else if (calcResultDisplayed) { // Se um resultado foi exibido, limpa para um novo cálculo
+                        calcDisplayValue = digit;
+                        calcWaitingForSecondOperand = false;
+                    } else {
+                        calcDisplayValue = calcDisplayValue === '0' ? digit : calcDisplayValue + digit;
+                    }
+                    calcUpdateDisplay();
+                }
+
+                function calcInputDecimal(dot) {
+                    if (!calcDisplayValue.includes(dot)) {
+                         if (calcWaitingForSecondOperand || calcDisplayValue === 'Erro') { // Se esperando 2o operando ou erro, começa com "0."
+                            calcDisplayValue = '0' + dot;
+                            calcWaitingForSecondOperand = false;
+                            calcResultDisplayed = false;
+                         } else {
+                            calcDisplayValue += dot;
+                         }
+                    }
+                    calcUpdateDisplay();
+                }
+
+                function calcPerformCalculation(val1, val2, op) {
+                    const num1 = parseFloat(val1);
+                    const num2 = parseFloat(val2);
+                    if (isNaN(num1) || isNaN(num2)) return 'Erro'; // Garante que são números antes de calcular
+
+                    if (op === '+') return num1 + num2;
+                    if (op === '-') return num1 - num2;
+                    if (op === '*') return num1 * num2;
+                    if (op === '/') return num2 === 0 ? 'Erro' : num1 / num2; // Evita divisão por zero
+                    return val2;
+                    return num2; // Fallback
+                }
+
+                function calcHandleOperator(nextOperator) {
+                    const inputValue = parseFloat(calcDisplayValue);
+                    if (isNaN(inputValue) && calcDisplayValue !== 'Erro') return; // Ignora se não for número
+
+                    if (calcDisplayValue === 'Erro') {
+                        resetCalculatorLogic(); // Reseta a calculadora, display vai para '0'
+                        // A função continua, e o '0' atual do display será usado como inputValue
+                    }
+
+                    if (calcOperator && calcWaitingForSecondOperand) {
+                        // Usuário pressionou um operador, depois outro (ex: 5 + *)
+                        calcOperator = nextOperator; // Apenas atualiza o operador
+                        return;
+                    }
+
+                    if (calcOperator && calcWaitingForSecondOperand) {
+                        // Se um operador foi pressionado e está esperando o segundo operando,
+                        // apenas atualiza o operador. Ex: 5 + * (usuário mudou de ideia de + para *)
+                        calcOperator = nextOperator;
+                        return;
+                    }
+
+                    if (calcFirstOperand === null || calcDisplayValue === 'Erro') { // Se display era 'Erro', inputValue é 0 após reset
+                        calcFirstOperand = parseFloat(calcDisplayValue); // Usa o valor atual do display (pode ser 0 após erro)
+                    } else if (calcOperator) {
+                        const result = calcPerformCalculation(calcFirstOperand, inputValue, calcOperator);
+                        calcDisplayValue = (result === 'Erro') ? 'Erro' : `${parseFloat(result.toFixed(7))}`;
+                        calcFirstOperand = (result === 'Erro') ? null : result; // Se erro, reseta o primeiro operando
+                    }
+
+                    calcWaitingForSecondOperand = true;
+                    calcOperator = nextOperator;
+                    calcResultDisplayed = false; // Não é um resultado final ainda, estamos no meio de uma operação
+                    calcUpdateDisplay();
+                }
+
+                function resetCalculatorLogic() {
+                    calcDisplayValue = '0';
+                    calcFirstOperand = null;
+                    calcOperator = null;
+                    calcWaitingForSecondOperand = false;
+                    calcResultDisplayed = false; // Reseta a flag de resultado
+                    calcUpdateDisplay();
+                }
+
+                function calcHandleEquals() {
+                    if (calcDisplayValue === 'Erro' || calcFirstOperand === null || calcOperator === null || calcWaitingForSecondOperand) {
+                        // Nada para calcular, ou já calculou, ou está em estado de erro e esperando novo input
+                        if (calcDisplayValue === 'Erro') resetCalculatorLogic(); // Limpa se estiver em erro e '=' for pressionado
+                        return;
+                    }
+                    // O restante da lógica deve estar dentro da função
+                    const inputValue = parseFloat(calcDisplayValue);
+                    if (isNaN(inputValue)) return;
+
+                    const result = calcPerformCalculation(calcFirstOperand, inputValue, calcOperator);
+                    calcDisplayValue = (result === 'Erro') ? 'Erro' : `${parseFloat(result.toFixed(7))}`;
+                    calcFirstOperand = null;
+                    calcOperator = null;
+                    calcWaitingForSecondOperand = true; // Próximo dígito limpa a tela
+                    calcResultDisplayed = true; // Marca que um resultado foi exibido
+                    calcUpdateDisplay();
+                } // Fechamento correto da função calcHandleEquals
+
+                // --- Listener de Teclado para a Calculadora ---
+                // Esta função será adicionada/removida dinamicamente
+                function handleCalculatorKeydown(event) {
+                    const key = event.key;
+                    // console.log("Tecla da Calculadora pressionada:", key); // Para debug
+
+                    // Verifica se a tecla é um número (0-9)
+                    if (/\d/.test(key)) {
+                        calcInputDigit(key);
+                        event.preventDefault(); // Previne ação padrão (ex: scroll)
+                    }
+                    // Verifica se a tecla é um operador (+, -, *, /)
+                    else if (['+', '-', '*', '/'].includes(key)) {
+                        calcHandleOperator(key);
+                        event.preventDefault();
+                    }
+                    // Verifica se a tecla é o ponto decimal (ou vírgula, comum em teclados numéricos)
+                    else if (key === '.' || key === ',') {
+                        calcInputDecimal('.'); // Sempre usa ponto internamente
+                        event.preventDefault();
+                    }
+                    // Verifica se a tecla é Enter ou = (para =)
+                    else if (key === 'Enter' || key === '=') {
+                        calcHandleEquals();
+                        event.preventDefault();
+                    }
+                     // Verifica se a tecla é Backspace
+                    else if (key === 'Backspace') {
+                        calcHandleBackspace();
+                        event.preventDefault();
+                    }
+                     // Verifica se a tecla é Escape (para fechar o modal)
+                    else if (key === 'Escape') {
+                        // Bootstrap já fecha o modal com Escape por padrão,
+                        // mas podemos adicionar lógica extra se necessário.
+                        // resetCalculatorLogic(); // Opcional: limpar ao fechar
+                        // event.preventDefault(); // Cuidado: pode impedir o fechamento padrão
+                    }
+                    // Verifica se a tecla é 'c' ou 'C' (para limpar)
+                    else if (key === 'c' || key === 'C') {
+                         resetCalculatorLogic();
+                         event.preventDefault();
+                    }
+
+                } // Fim de handleCalculatorKeydown
+
+                function calcHandleBackspace() {
+                    if (calcDisplayValue === 'Erro') {
+                        resetCalculatorLogic();
+                        return;
+                    }
+                    if (calcDisplayValue.length === 1 || (calcDisplayValue.length === 2 && calcDisplayValue.startsWith('-'))) {
+                        calcDisplayValue = '0';
+                    } else {
+                        calcDisplayValue = calcDisplayValue.slice(0, -1);
+                    }
+                    calcResultDisplayed = false; // Não é mais um resultado final
+                    calcUpdateDisplay();
+                }
+
+                // --- Adicionar/Remover Listener de Teclado com Eventos do Modal ---
+                // Esta configuração deve estar FORA da função handleCalculatorKeydown
+                calculatorModalElement.addEventListener('shown.bs.modal', function () {
+                    // Quando o modal é mostrado, adiciona o listener de teclado
+                    console.log("Modal Calculadora mostrado. Adicionando listener de teclado.");
+                    calculatorKeydownListener = handleCalculatorKeydown; // Armazena a referência da função
+                    document.addEventListener('keydown', calculatorKeydownListener);
+                });
+
+                calculatorModalElement.addEventListener('hidden.bs.modal', function () {
+                    // Quando o modal é escondido, remove o listener de teclado
+                    console.log("Modal Calculadora escondido. Removendo listener de teclado.");
+                    if (calculatorKeydownListener) {
+                        document.removeEventListener('keydown', calculatorKeydownListener);
+                        calculatorKeydownListener = null; // Limpa a referência
+                    }
+                });
+
+                // Event Listener para Cliques nos Botões da Calculadora
+                const calcButtons = calculatorModalElement.querySelectorAll('.calc-btn');
+                calcButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const action = this.dataset.action;
+                        const value = this.dataset.value;
+
+                        if (action === 'operator') calcHandleOperator(value);
+                        else if (action === 'decimal') calcInputDecimal(value);
+                        else if (action === 'clear') resetCalculatorLogic();
+                        else if (action === 'calculate') calcHandleEquals();
+                        else if (value) calcInputDigit(value);
+                    });
+                });
+                
+                // Inicializa o display da calculadora no modal
+                calcUpdateDisplay(); 
             }
 
             // Função auxiliar para pegar o CSRF token dos cookies
