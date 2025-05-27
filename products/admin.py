@@ -17,3 +17,4 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ('name', 'internal_code', 'barcode', 'description')
     list_filter = ('created_at', 'updated_at')
     ordering = ('name',)
+    readonly_fields = ('created_at', 'updated_at', 'internal_code')

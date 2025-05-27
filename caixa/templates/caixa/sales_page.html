@@ -233,11 +233,11 @@
                 // Mova o bloco de preparação e envio de dados para DENTRO desta função
                 // Prepara os dados para enviar ao backend
                 const saleData = {
-                        total_amount: currentSaleTotal.toFixed(2),
+                        // total_amount: currentSaleTotal.toFixed(2), // REMOVIDO: O backend calculará o total
                         payment_method: method, // 'method' agora está no escopo correto
                         items: saleItemsArray.map(item => ({ // Mapeia para enviar apenas os dados necessários
                             productId: item.productId,
-                            quantity: item.quantity,
+                            quantity: parseInt(item.quantity), // Garante que a quantidade seja um número
                             price: item.price.toFixed(2) // Preço unitário no momento da venda
                             // O backend calculará o subtotal do item se necessário
                         }))
@@ -245,12 +245,13 @@
 
                 console.log("CONSOLE (FRONTEND): Enviando para o backend:", JSON.stringify(saleData, null, 2));
 
+                const csrftoken = getCookie('csrftoken'); // Pega o token CSRF
                 // Envia os dados para o backend usando Fetch API
                 fetch("{% url 'sales:finalize_sale' %}", { // Usa a tag de URL do Django para obter o caminho correto
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            // 'X-CSRFToken': '{{ csrf_token }}', // Necessário se CSRF não estiver isento na view
+                            'X-CSRFToken': csrftoken // Adiciona o token CSRF ao header
                         },
                         body: JSON.stringify(saleData)
                     })
@@ -258,7 +259,8 @@
                     .then(data => {
                         console.log("CONSOLE (FRONTEND): Resposta do backend:", data);
                         if (data.status === 'success') {
-                            alert(`Venda #${data.sale_id} finalizada com sucesso!`);
+                            //alert(`Venda #${data.sale_id} finalizada com sucesso!`);
+                            alert(`Venda finalizada com sucesso!`);
                             clearCurrentSale(); // Limpa a venda no frontend APÓS sucesso do backend
                         } else {
                             alert(`Erro ao finalizar venda: ${data.message || 'Erro desconhecido.'}`);
@@ -513,6 +515,23 @@
                         handleAddProductClick();
                     }
                 });
+            }
+
+            // Função auxiliar para pegar o CSRF token dos cookies
+            // (Certifique-se que esta função está presente e correta)
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
             }
         });
     </script>

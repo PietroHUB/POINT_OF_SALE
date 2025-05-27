@@ -3,6 +3,9 @@ from django.conf import settings # Para referenciar o User model
 from products.models import Product # Importar o modelo Product do seu app products
 from django.utils.translation import gettext_lazy as _
 
+import logging
+logger = logging.getLogger(__name__)
+
 class Sale(models.Model):
     # Opcional: Se você tiver login de operador de caixa
     # user = models.ForeignKey(
@@ -41,9 +44,9 @@ class Sale(models.Model):
         is_new = self._state.adding # Verifica se é uma nova instância
         super().save(*args, **kwargs) # Chama o método save original
         if is_new:
-            print(f"CONSOLE (BACKEND): Nova Venda #{self.id} salva no banco de dados. Total: {self.total_amount}, Pagamento: {self.payment_method}")
+            logger.info("Nova Venda #%s salva no banco de dados. Total: %s, Pagamento: %s", self.id, self.total_amount, self.payment_method)
         else:
-            print(f"CONSOLE (BACKEND): Venda #{self.id} atualizada no banco de dados.")
+            logger.info("Venda #%s atualizada no banco de dados.", self.id)
 
 class SaleItem(models.Model):
     sale = models.ForeignKey(
@@ -83,14 +86,14 @@ class SaleItem(models.Model):
 
     def save(self, *args, **kwargs):
         # Calcula o subtotal automaticamente antes de salvar, se não for fornecido
-        print(f"CONSOLE (BACKEND): Preparando para salvar SaleItem. Produto: {self.product.name if self.product else 'N/A'}, Quantidade: {self.quantity}")
+        logger.debug("Preparando para salvar SaleItem. Produto: %s, Quantidade: %s", self.product.name if self.product else 'N/A', self.quantity)
         if not self.subtotal:
             self.subtotal = self.quantity * self.unit_price
-            print(f"CONSOLE (BACKEND): Subtotal do SaleItem calculado: {self.subtotal}")
+            logger.debug("Subtotal do SaleItem calculado: %s", self.subtotal)
 
         is_new = self._state.adding
         super().save(*args, **kwargs)
         if is_new:
-            print(f"CONSOLE (BACKEND): Novo SaleItem para Venda #{self.sale.id} salvo no banco. Produto: {self.product.name}, Subtotal: {self.subtotal}")
+            logger.info("Novo SaleItem para Venda #%s salvo no banco. Produto: %s, Subtotal: %s", self.sale.id, self.product.name, self.subtotal)
         else:
-            print(f"CONSOLE (BACKEND): SaleItem para Venda #{self.sale.id} atualizado no banco.")
+            logger.info("SaleItem para Venda #%s atualizado no banco.", self.sale.id)

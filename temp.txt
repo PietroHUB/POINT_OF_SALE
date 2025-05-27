@@ -1,0 +1,10 @@
+#para usar a test rode o seguinte comando no prompt:
+#python manage.py test sales
+
+para resetar tudo:
+python manage.py flush
+
+
+ADMIN:
+pvplima
+joao@316

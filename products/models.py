@@ -30,8 +30,10 @@ class Product(models.Model):
     internal_code = models.CharField(
         _("Código Interno"),
         max_length=50,
-        unique=True, # Geralmente um código interno/SKU é único
-        help_text=_("Código interno/SKU único para o produto.")
+        unique=True,
+        blank=True,       # Permitir que seja blank inicialmente, pois será gerado
+        editable=False,   # Não editável diretamente em formulários, será gerado automaticamente
+        help_text=_("Código interno/SKU único para o produto (gerado automaticamente).")
     )
     stock_quantity = models.PositiveIntegerField(
         _("Quantidade em Estoque"),
@@ -64,3 +66,22 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        # Verifica se é uma nova instância (primeiro save) e se o internal_code ainda não foi definido.
+        if self._state.adding and not self.internal_code:
+            # Primeiro, salva o objeto para que ele obtenha um PK (self.pk).
+            # Esta chamada a super().save() irá inserir o registro no banco.
+            super().save(*args, **kwargs)
+
+            # Agora que o objeto tem um PK, podemos usá-lo para gerar um código interno único.
+            # Formato ajustado para apenas números, com padding de 6 dígitos.
+            generated_code = f"{self.pk:06d}"
+            self.internal_code = generated_code
+
+            # Atualiza o registro no banco de dados apenas com o novo internal_code,
+            # sem disparar o método save() completo novamente (evita recursão e sinais desnecessários).
+            Product.objects.filter(pk=self.pk).update(internal_code=self.internal_code)
+        else:
+            # Se for uma atualização de um produto existente, ou se o internal_code já estiver definido.
+            super().save(*args, **kwargs)

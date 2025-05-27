@@ -118,6 +118,40 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Logging configuration
+# https://docs.djangoproject.com/en/5.2/topics/logging/
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple', # Use 'verbose' for more detail
+        },
+        # Opcional: Adicionar handler para arquivo em produção
+        # 'file': {
+        #     'class': 'logging.FileHandler',
+        #     'filename': BASE_DIR / 'logs' / 'django.log',
+        #     'formatter': 'verbose',
+        # },
+    },
+    'root': { # Configuração para o logger raiz (captura logs de toda a aplicação)
+        'handlers': ['console'], # Envia logs para o console
+        'level': 'INFO', # Nível mínimo de log a ser processado (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    },
+}
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
