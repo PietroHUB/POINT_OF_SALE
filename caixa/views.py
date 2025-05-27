@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required # Para proteger a página
-from products.models import Product # Vamos precisar dos produtos
+from products.models import Product # Correto: Product vem do app 'products'
+from .models import PaymentMethod # Correto: PaymentMethod vem deste app 'caixa'
 from django.http import HttpResponse # Importe HttpResponse se necessário, mas render já retorna um
 
 """
@@ -27,8 +28,12 @@ def sales_page_view(request):
             * 
         from products_product
     """
+
+    payment_methods = PaymentMethod.objects.all().order_by('id')
+
     context = {
         'products': products,
-        'page_title': 'Ponto de Venda'
+        'page_title': 'Ponto de Venda',
+        'payment_methods': payment_methods,
     }
     return render(request, 'caixa/sales_page.html', context)

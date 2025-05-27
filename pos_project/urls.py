@@ -21,5 +21,4 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('caixa.urls', namespace='caixa')), # Rota para o app caixa
     path('sales/', include('sales.urls', namespace='sales')), # Rota para o app sales
-    path('caixa/', include('caixa.urls')), # Inclui as URLs do app caixa
 ]

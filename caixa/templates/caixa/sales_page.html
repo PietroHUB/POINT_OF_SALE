@@ -148,10 +148,78 @@
                 <div class="modal-body">
                     <h5 class="mb-3">Selecione a Forma de Pagamento:</h5>
                     <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-info btn-lg payment-option-btn" data-payment-method="Pix" data-key="1">(1) Pix</button>
-                        <button type="button" class="btn btn-success btn-lg payment-option-btn" data-payment-method="Dinheiro" data-key="2">(2) Dinheiro</button>
-                        <button type="button" class="btn btn-warning btn-lg payment-option-btn" data-payment-method="Cartão de Débito" data-key="3">(3) Cartão de Débito</button>
-                        <button type="button" class="btn btn-danger btn-lg payment-option-btn" data-payment-method="Cartão de Crédito" data-key="4">(4) Cartão de Crédito</button>
+                        {% if payment_methods %}
+                        {% for method in payment_methods %}
+                            {% comment %} Define a classe do botão com base na descrição {% endcomment %}
+                            {% if method.description == "Pix" %}
+                                {% with btn_class="btn-info" %}
+                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
+                                            data-payment-method="{{ method.description }}"
+                                            data-payment-id="{{ method.id }}"
+                                            data-key="{{ forloop.counter }}">
+                                        ({{ forloop.counter }}) {{ method.description }}
+                                    </button>
+                                {% endwith %}
+                            {% elif method.description == "Dinheiro" %}
+                                {% with btn_class="btn-success" %}
+                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
+                                            data-payment-method="{{ method.description }}"
+                                            data-payment-id="{{ method.id }}"
+                                            data-key="{{ forloop.counter }}">
+                                        ({{ forloop.counter }}) {{ method.description }}
+                                    </button>
+                                {% endwith %}
+                            {% elif method.description == "Cartão de Débito" %}
+                                {% with btn_class="btn-warning text-dark" %} {# text-dark para melhor contraste no amarelo #}
+                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
+                                            data-payment-method="{{ method.description }}"
+                                            data-payment-id="{{ method.id }}"
+                                            data-key="{{ forloop.counter }}">
+                                        ({{ forloop.counter }}) {{ method.description }}
+                                    </button>
+                                {% endwith %}
+                            {% elif method.description == "Cartão de Crédito" %}
+                                {% with btn_class="btn-danger" %}
+                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
+                                            data-payment-method="{{ method.description }}"
+                                            data-payment-id="{{ method.id }}"
+                                            data-key="{{ forloop.counter }}">
+                                        ({{ forloop.counter }}) {{ method.description }}
+                                    </button>
+                                {% endwith %}
+                                {% elif method.description == "Cheque" %}
+                                    {% with btn_class="btn-secondary" %}
+                                        <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
+                                                data-payment-method="{{ method.description }}"
+                                                data-payment-id="{{ method.id }}"
+                                                data-key="{{ forloop.counter }}">
+                                            ({{ forloop.counter }}) {{ method.description }}
+                                        </button>
+                                    {% endwith %}
+                                {% elif method.description == "Fiado" %}
+                                    {% with btn_class="btn-dark" %}
+                                        <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
+                                                data-payment-method="{{ method.description }}"
+                                                data-payment-id="{{ method.id }}"
+                                                data-key="{{ forloop.counter }}">
+                                            ({{ forloop.counter }}) {{ method.description }}
+                                        </button>
+                                    {% endwith %}
+                            {% else %}
+                                {% with btn_class="btn-primary" %} {# Cor padrão para outros métodos #}
+                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
+                                            data-payment-method="{{ method.description }}"
+                                            data-payment-id="{{ method.id }}"
+                                            data-key="{{ forloop.counter }}">
+                                        ({{ forloop.counter }}) {{ method.description }}
+                                    </button>
+                                {% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-danger">Nenhuma forma de pagamento cadastrada.</p>
+                    {% endif %}
+
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -527,15 +595,19 @@
 
                 // Lógica para seleção de pagamento por teclado (1-4) quando o modal de finalização está visível
                 if (finalizeSaleModalElement && finalizeSaleModalElement.classList.contains('show')) {
-                    let selectedMethod = null;
-                    if (event.key === '1') selectedMethod = 'Pix';
-                    else if (event.key === '2') selectedMethod = 'Dinheiro';
-                    else if (event.key === '3') selectedMethod = 'Cartão de Débito';
-                    else if (event.key === '4') selectedMethod = 'Cartão de Crédito';
-
-                    if (selectedMethod) {
-                        event.preventDefault(); // Previne qualquer ação padrão da tecla numérica
-                        processPaymentSelection(selectedMethod);
+                    // Nova lógica para atalhos dinâmicos
+                    const keyPressed = event.key;
+                    // Permite até 9 formas de pagamento via atalho numérico.
+                    // Se você tiver mais, precisará de uma lógica diferente ou limitar os atalhos.
+                    if (/^[1-9]$/.test(keyPressed)) { 
+                        const keyNumber = parseInt(keyPressed, 10);
+                        // Encontra o botão correspondente ao data-key
+                        const targetButton = finalizeSaleModalElement.querySelector(`.payment-option-btn[data-key="${keyNumber}"]`);
+                        if (targetButton) {
+                            event.preventDefault();
+                            const paymentMethod = targetButton.dataset.paymentMethod;
+                            processPaymentSelection(paymentMethod);
+                        }
                     }
                 }
             });
@@ -622,8 +694,7 @@
                     if (op === '-') return num1 - num2;
                     if (op === '*') return num1 * num2;
                     if (op === '/') return num2 === 0 ? 'Erro' : num1 / num2; // Evita divisão por zero
-                    return val2;
-                    return num2; // Fallback
+                    return num2; // Fallback caso nenhum operador corresponda
                 }
 
                 function calcHandleOperator(nextOperator) {
