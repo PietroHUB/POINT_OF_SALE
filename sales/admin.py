@@ -12,10 +12,10 @@ class SaleItemInline(admin.TabularInline): # Ou admin.StackedInline para um layo
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
-    list_display = ('id', 'total_amount', 'payment_method', 'created_at') # Campos a serem exibidos na lista de vendas
-    list_filter = ('payment_method', 'created_at') # Filtros
-    search_fields = ('id', 'payment_method') # Campos de busca
-    readonly_fields = ('total_amount', 'payment_method', 'created_at') # Torna campos somente leitura no formulário de edição da Venda
+    list_display = ('id', 'total_amount', 'created_at', 'display_payment_methods') # Campos a serem exibidos na lista de vendas
+    list_filter = ('created_at',) # Filtros
+    search_fields = ('id',) # Campos de busca
+    readonly_fields = ('total_amount', 'created_at', 'display_payment_methods') # Torna campos somente leitura
     inlines = [SaleItemInline] # Permite ver os SaleItems dentro da página de detalhes da Sale
 
     def has_add_permission(self, request):
@@ -26,6 +26,13 @@ class SaleAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False # Impede a exclusão de vendas pelo admin
+
+    def display_payment_methods(self, obj):
+        # obj é uma instância de Sale
+        # obj.payments.all() usa o related_name='payments' do ForeignKey em SalePayment
+        payments = obj.payments.all()
+        return ", ".join([f"{p.payment_method.description} (R$ {p.amount})" for p in payments]) if payments else "N/A"
+    display_payment_methods.short_description = "Formas de Pagamento"
 
 # Opcional: Registrar SaleItem separadamente se quiser uma visão direta deles,
 # mas geralmente é melhor visualizá-los através da Sale.

@@ -1,53 +1,68 @@
 from django.db import models
-from django.conf import settings # Para referenciar o User model
 from products.models import Product # Importar o modelo Product do seu app products
 from django.utils.translation import gettext_lazy as _
+from decimal import Decimal
 
 import logging
 logger = logging.getLogger(__name__)
 
+
+# Supondo que PaymentMethod está em caixa.models
+# Se não estiver, você precisará ajustar este import ou criar o modelo.
+from caixa.models import PaymentMethod
+
 class Sale(models.Model):
-    # Opcional: Se você tiver login de operador de caixa
-    # user = models.ForeignKey(
-    #     settings.AUTH_USER_MODEL,
-    #     on_delete=models.SET_NULL, # Se o usuário for deletado, a venda não é, mas o campo user fica null
-    #     null=True,
-    #     blank=True,
-    #     verbose_name=_("Operador")
-    # )
+    # O campo payment_method foi removido daqui.
+    # O total_amount continua sendo o valor total dos produtos da venda.
     total_amount = models.DecimalField(
-        _("Valor Total"),
+        _("Valor Total da Venda"),
         max_digits=10,
         decimal_places=2,
-        help_text=_("Valor total da venda.")
+        default=Decimal('0.00')
     )
-    payment_method = models.CharField(
-        _("Forma de Pagamento"),
-        max_length=50,
-        default="Desconhecido", # Adicionar um default para migrações
-        help_text=_("Forma de pagamento utilizada (Ex: Pix, Dinheiro, Cartão de Crédito).")
-    )
-    created_at = models.DateTimeField(
-        _("Data e Hora da Venda"),
-        auto_now_add=True, # Define automaticamente a data e hora na criação
-        editable=False
-    )
+    created_at = models.DateTimeField(_("Data da Venda"), auto_now_add=True)
+    # Adicione quaisquer outros campos que seu modelo Sale possa ter.
 
     class Meta:
         verbose_name = _("Venda")
         verbose_name_plural = _("Vendas")
-        ordering = ['-created_at'] # Ordenar as vendas da mais recente para a mais antiga
+        ordering = ['-created_at']
 
     def __str__(self):
-        return f"Venda #{self.id} - R$ {self.total_amount} ({self.created_at.strftime('%d/%m/%Y %H:%M')})"
+        return f"Venda #{self.id} - R$ {self.total_amount}"
 
-    def save(self, *args, **kwargs):
-        is_new = self._state.adding # Verifica se é uma nova instância
-        super().save(*args, **kwargs) # Chama o método save original
-        if is_new:
-            logger.info("Nova Venda #%s salva no banco de dados. Total: %s, Pagamento: %s", self.id, self.total_amount, self.payment_method)
-        else:
-            logger.info("Venda #%s atualizada no banco de dados.", self.id) # Removido total_amount para consistência com o log de criação
+class SalePayment(models.Model):
+    sale = models.ForeignKey(
+        Sale,
+        related_name='payments', # Para acessar os pagamentos a partir de uma instância de Sale (sale.payments.all())
+        on_delete=models.CASCADE,
+        verbose_name=_("Venda")
+    )
+    payment_method = models.ForeignKey(
+        PaymentMethod, # Referencia o seu modelo de Formas de Pagamento
+        on_delete=models.PROTECT, # Evita excluir uma forma de pagamento se ela estiver em uso
+        verbose_name=_("Forma de Pagamento")
+    )
+    amount = models.DecimalField(
+        _("Valor Pago"),
+        max_digits=10,
+        decimal_places=2
+    )
+    created_at = models.DateTimeField(_("Data do Pagamento"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Pagamento da Venda")
+        verbose_name_plural = _("Pagamentos da Venda")
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Pagamento de R$ {self.amount} para Venda #{self.sale.id} via {self.payment_method.description}"
+
+# Não se esqueça de criar e aplicar as migrações após essas alterações:
+# python manage.py makemigrations sales
+# python manage.py migrate
+
+
 
 class SaleItem(models.Model):
     sale = models.ForeignKey(
@@ -86,11 +101,10 @@ class SaleItem(models.Model):
         return f"{self.quantity}x {self.product.name} na Venda #{self.sale.id}"
 
     def save(self, *args, **kwargs):
-        # Calcula o subtotal automaticamente antes de salvar, se não for fornecido
+        # Calcula o subtotal automaticamente para garantir consistência
         logger.debug("Preparando para salvar SaleItem. Produto: %s, Quantidade: %s", self.product.name if self.product else 'N/A', self.quantity)
-        if not self.subtotal:
-            self.subtotal = self.quantity * self.unit_price
-            logger.debug("Subtotal do SaleItem calculado: %s", self.subtotal)
+        self.subtotal = self.quantity * self.unit_price # Sempre calcula o subtotal
+        logger.debug("Subtotal do SaleItem definido/recalculado para: %s", self.subtotal)
 
         is_new = self._state.adding
         super().save(*args, **kwargs)

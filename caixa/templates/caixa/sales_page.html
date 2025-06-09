@@ -137,94 +137,64 @@
         </div>
     </div>
 
-    <!-- Modal de Finalização de Venda (Placeholder por enquanto) -->
-     <div class="modal fade" id="finalizeSaleModal" tabindex="-1" aria-labelledby="finalizeSaleModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+    <!-- Modal de Finalização de Venda (REESTRUTURADO) -->
+    <div class="modal fade" id="finalizeSaleModal" tabindex="-1" aria-labelledby="finalizeSaleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg"> <!-- modal-lg para mais espaço -->
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="finalizeSaleModalLabel">Finalizar Venda</h5>
+                    <h5 class="modal-title" id="finalizeSaleModalLabel">Finalizar Venda - Total: R$ <span id="modalSaleTotal">0.00</span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <h5 class="mb-3">Selecione a Forma de Pagamento:</h5>
-                    <div class="d-grid gap-2">
-                        {% if payment_methods %}
-                        {% for method in payment_methods %}
-                            {% comment %} Define a classe do botão com base na descrição {% endcomment %}
-                            {% if method.description == "Pix" %}
-                                {% with btn_class="btn-info" %}
-                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
-                                            data-payment-method="{{ method.description }}"
-                                            data-payment-id="{{ method.id }}"
-                                            data-key="{{ forloop.counter }}">
-                                        ({{ forloop.counter }}) {{ method.description }}
-                                    </button>
-                                {% endwith %}
-                            {% elif method.description == "Dinheiro" %}
-                                {% with btn_class="btn-success" %}
-                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
-                                            data-payment-method="{{ method.description }}"
-                                            data-payment-id="{{ method.id }}"
-                                            data-key="{{ forloop.counter }}">
-                                        ({{ forloop.counter }}) {{ method.description }}
-                                    </button>
-                                {% endwith %}
-                            {% elif method.description == "Cartão de Débito" %}
-                                {% with btn_class="btn-warning text-dark" %} {# text-dark para melhor contraste no amarelo #}
-                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
-                                            data-payment-method="{{ method.description }}"
-                                            data-payment-id="{{ method.id }}"
-                                            data-key="{{ forloop.counter }}">
-                                        ({{ forloop.counter }}) {{ method.description }}
-                                    </button>
-                                {% endwith %}
-                            {% elif method.description == "Cartão de Crédito" %}
-                                {% with btn_class="btn-danger" %}
-                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
-                                            data-payment-method="{{ method.description }}"
-                                            data-payment-id="{{ method.id }}"
-                                            data-key="{{ forloop.counter }}">
-                                        ({{ forloop.counter }}) {{ method.description }}
-                                    </button>
-                                {% endwith %}
-                                {% elif method.description == "Cheque" %}
-                                    {% with btn_class="btn-secondary" %}
-                                        <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
-                                                data-payment-method="{{ method.description }}"
-                                                data-payment-id="{{ method.id }}"
-                                                data-key="{{ forloop.counter }}">
-                                            ({{ forloop.counter }}) {{ method.description }}
-                                        </button>
-                                    {% endwith %}
-                                {% elif method.description == "Fiado" %}
-                                    {% with btn_class="btn-dark" %}
-                                        <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
-                                                data-payment-method="{{ method.description }}"
-                                                data-payment-id="{{ method.id }}"
-                                                data-key="{{ forloop.counter }}">
-                                            ({{ forloop.counter }}) {{ method.description }}
-                                        </button>
-                                    {% endwith %}
-                            {% else %}
-                                {% with btn_class="btn-primary" %} {# Cor padrão para outros métodos #}
-                                    <button type="button" class="btn {{ btn_class }} btn-lg payment-option-btn"
-                                            data-payment-method="{{ method.description }}"
-                                            data-payment-id="{{ method.id }}"
-                                            data-key="{{ forloop.counter }}">
-                                        ({{ forloop.counter }}) {{ method.description }}
-                                    </button>
-                                {% endwith %}
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-danger">Nenhuma forma de pagamento cadastrada.</p>
-                    {% endif %}
+                    <div class="row">
+                        <!-- Seção para adicionar pagamentos -->
+                        <div class="col-md-6">
+                            <h5>Adicionar Pagamento</h5>
+                            <div class="mb-3">
+                                <label for="paymentMethodSelect" class="form-label">Forma de Pagamento:</label>
+                                <select class="form-select" id="paymentMethodSelect">
+                                    <option value="" disabled {% if not payment_methods_default_pix %}selected{% endif %}>Selecione...</option>
+                                    {% if payment_methods %}
+                                        {% for method in payment_methods %}
+                                        {# Assumindo que o ID do Pix é 1. Ajuste se for diferente. #}
+                                        <option value="{{ method.id }}" 
+                                                data-method-name="{{ method.description }}"
+                                                {% if method.id == 1 %}selected{% endif %}> 
+                                            {{ method.description }}
+                                        </option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="paymentAmountInput" class="form-label">Valor a Pagar (R$):</label>
+                                <input type="number" class="form-control" id="paymentAmountInput" placeholder="0.00" step="0.01">
+                            </div>
+                            <button type="button" class="btn btn-primary w-100" id="addPaymentButton">Adicionar Pagamento</button>
+                            <hr>
+                            <div class="d-flex justify-content-between mt-2">
+                                <strong>Total Pago:</strong>
+                                <strong id="modalTotalPaid">R$ 0.00</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <strong>Restante:</strong>
+                                <strong id="modalAmountRemaining" class="text-danger">R$ 0.00</strong>
+                            </div>
+                        </div>
 
+                        <!-- Seção para listar pagamentos adicionados -->
+                        <div class="col-md-6">
+                            <h5>Pagamentos Adicionados</h5>
+                            <ul class="list-group" id="addedPaymentsList">
+                                <li class="list-group-item text-muted" id="noPaymentsAddedMsg">Nenhum pagamento adicionado.</li>
+                                <!-- Pagamentos serão listados aqui pelo JS -->
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar Venda</button>
-                    <!-- Botão da calculadora foi movido para a área principal -->
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelSaleFinalizationButton">Cancelar</button>
+                    <button type="button" class="btn btn-success" id="confirmSaleWithPaymentsButton" disabled>Confirmar Venda</button>
                 </div>
             </div>
         </div>
@@ -314,17 +284,32 @@
             const quantityInput = document.getElementById('quantityInput');
             const confirmQuantityButton = document.getElementById('confirmQuantityButton');
             const currentPendingQuantitySpan = document.getElementById('currentPendingQuantity'); // Span para mostrar a quantidade pendente no botão
+            
+            // Elementos do NOVO Modal de Finalização de Múltiplos Pagamentos
+            const modalSaleTotalSpan = document.getElementById('modalSaleTotal');
+            const paymentMethodSelect = document.getElementById('paymentMethodSelect');
+            const paymentAmountInput = document.getElementById('paymentAmountInput');
+            const addPaymentButton = document.getElementById('addPaymentButton');
+            const addedPaymentsList = document.getElementById('addedPaymentsList');
+            const noPaymentsAddedMsg = document.getElementById('noPaymentsAddedMsg');
+            const modalTotalPaidSpan = document.getElementById('modalTotalPaid');
+            const modalAmountRemainingSpan = document.getElementById('modalAmountRemaining');
+            const confirmSaleWithPaymentsButton = document.getElementById('confirmSaleWithPaymentsButton');
+            // const cancelSaleFinalizationButton = document.getElementById('cancelSaleFinalizationButton'); // Já deve existir, mas para clareza
 
-            // Elementos do Modal de Finalização de Venda
+            // Elementos do Modal de Finalização de Venda (o finalizeSaleModalElement e finalizeSaleModalInstance já devem existir)
             const finalizeSaleModalElement = document.getElementById('finalizeSaleModal');
             const finalizeSaleModalInstance = finalizeSaleModalElement ? new bootstrap.Modal(finalizeSaleModalElement) : null;
-            const paymentOptionButtons = document.querySelectorAll('.payment-option-btn'); // Seleciona todos os botões de opção de pagamento
+            // const paymentOptionButtons = document.querySelectorAll('.payment-option-btn'); // REMOVIDO
 
             // Elementos do Modal da Calculadora
             const calculatorModalElement = document.getElementById('calculatorModal');
             // const calculatorModalInstance = calculatorModalElement ? new bootstrap.Modal(calculatorModalElement) : null; // Instância se precisar controlar via JS
             let calculatorKeydownListener = null; // Variável para armazenar a função do listener de teclado
 
+
+            let currentPaymentsArray = []; // NOVO: Para armazenar os pagamentos adicionados no modal
+            let saleTotalForModal = 0;    // NOVO: Para armazenar o total da venda quando o modal de pagamento é aberto
 
             let currentSaleTotal = 0.00;
             let saleItemsArray = []; // Array para armazenar os objetos dos produtos na venda atual
@@ -344,57 +329,7 @@
                 if (barcodeInput) barcodeInput.focus();
             }
 
-            function processPaymentSelection(method) {
-                console.log("CONSOLE: Método de pagamento selecionado:", method);
-                if (finalizeSaleModalInstance) finalizeSaleModalInstance.hide();
-
-                // CONSOLE LOG ADICIONADO AQUI:
-                console.log("CONSOLE (FRONTEND): Preparando para enviar dados da venda para o backend.");
-                console.log("CONSOLE (FRONTEND): Itens da venda:", JSON.stringify(saleItemsArray, null, 2)); // Mostra os itens de forma legível
-                console.log("CONSOLE (FRONTEND): Total da venda:", currentSaleTotal.toFixed(2));
-                console.log("CONSOLE (FRONTEND): Forma de pagamento:", method);
-
-                // Mova o bloco de preparação e envio de dados para DENTRO desta função
-                // Prepara os dados para enviar ao backend
-                const saleData = {
-                        // total_amount: currentSaleTotal.toFixed(2), // REMOVIDO: O backend calculará o total
-                        payment_method: method, // 'method' agora está no escopo correto
-                        items: saleItemsArray.map(item => ({ // Mapeia para enviar apenas os dados necessários
-                            productId: item.productId,
-                            quantity: parseInt(item.quantity), // Garante que a quantidade seja um número
-                            price: item.price.toFixed(2) // Preço unitário no momento da venda
-                            // O backend calculará o subtotal do item se necessário
-                        }))
-                    };
-
-                console.log("CONSOLE (FRONTEND): Enviando para o backend:", JSON.stringify(saleData, null, 2));
-
-                const csrftoken = getCookie('csrftoken'); // Pega o token CSRF
-                // Envia os dados para o backend usando Fetch API
-                fetch("{% url 'sales:finalize_sale' %}", { // Usa a tag de URL do Django para obter o caminho correto
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken // Adiciona o token CSRF ao header
-                        },
-                        body: JSON.stringify(saleData)
-                    })
-                    .then(response => response.json()) // Converte a resposta do backend para JSON
-                    .then(data => {
-                        console.log("CONSOLE (FRONTEND): Resposta do backend:", data);
-                        if (data.status === 'success') {
-                            //alert(`Venda #${data.sale_id} finalizada com sucesso!`);
-                            alert(`Venda finalizada com sucesso!`);
-                            clearCurrentSale(); // Limpa a venda no frontend APÓS sucesso do backend
-                        } else {
-                            alert(`Erro ao finalizar venda: ${data.message || 'Erro desconhecido.'}`);
-                        }
-                    })
-                    .catch(error => {
-                        console.error("CONSOLE (FRONTEND): Erro ao enviar venda para o backend:", error);
-                        alert("Erro de comunicação ao finalizar a venda. Verifique o console.");
-                    });
-            }
+            // A função processPaymentSelection foi removida pois a lógica de pagamento foi refeita.
 
             function updateSaleTotalOnScreen() {
                 saleTotalSpan.textContent = currentSaleTotal.toFixed(2).replace('.', ',');
@@ -513,6 +448,198 @@
                 }
             }
 
+            // --- Funções para o NOVO Modal de Múltiplos Pagamentos ---
+            
+            // Esta função calcula e atualiza os totais (pago, restante) no modal de pagamento.
+            // Também habilita/desabilita o botão de confirmar venda com base nesses totais.
+            function updatePaymentModalTotals() {
+                let totalPaidInModal = 0;
+                currentPaymentsArray.forEach(p => totalPaidInModal += parseFloat(p.amount));
+
+                const remaining = saleTotalForModal - totalPaidInModal;
+
+                if (modalTotalPaidSpan) modalTotalPaidSpan.textContent = `R$ ${totalPaidInModal.toFixed(2).replace('.', ',')}`;
+                if (modalAmountRemainingSpan) {
+                    modalAmountRemainingSpan.textContent = `R$ ${remaining.toFixed(2).replace('.', ',')}`;
+                    modalAmountRemainingSpan.classList.toggle('text-danger', remaining > 0.001); // Pequena margem para float
+                    modalAmountRemainingSpan.classList.toggle('text-success', remaining <= 0.001);
+                }
+
+                if (confirmSaleWithPaymentsButton) {
+                    confirmSaleWithPaymentsButton.disabled = Math.abs(remaining) > 0.001;
+                }
+            }
+
+            // Esta função atualiza a lista visual de pagamentos que foram adicionados no modal.
+            // Ela limpa a lista existente e recria os itens com base no array 'currentPaymentsArray'.
+            // Ao final, chama updatePaymentModalTotals() para que os valores sejam recalculados.
+            function renderAddedPayments() {
+                if (!addedPaymentsList || !noPaymentsAddedMsg) return;
+                addedPaymentsList.innerHTML = ''; 
+
+                if (currentPaymentsArray.length === 0) {
+                    noPaymentsAddedMsg.style.display = 'block';
+                } else {
+                    noPaymentsAddedMsg.style.display = 'none';
+                    currentPaymentsArray.forEach((payment, index) => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        listItem.innerHTML = `
+                            <span>${payment.methodName}: R$ ${parseFloat(payment.amount).toFixed(2).replace('.', ',')}</span>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-added-payment-btn" data-index="${index}">X</button>
+                        `;
+                        addedPaymentsList.appendChild(listItem);
+                    });
+                }
+                updatePaymentModalTotals(); // Atualiza os totais sempre que a lista de pagamentos mudar
+            }
+            
+            function clearPaymentModal() {
+                currentPaymentsArray = []; // Limpa o array de pagamentos
+                if(paymentMethodSelect) paymentMethodSelect.value = ""; // Reseta o select
+                if(paymentAmountInput) paymentAmountInput.value = "";   // Limpa o input de valor
+                renderAddedPayments(); // Re-renderiza a lista (que mostrará "Nenhum pagamento") e atualiza os totais
+                if(confirmSaleWithPaymentsButton) confirmSaleWithPaymentsButton.disabled = true; // Desabilita o botão de confirmar
+            }
+
+            // Listener para o botão "Adicionar Pagamento" dentro do modal
+            if (addPaymentButton) {
+                addPaymentButton.addEventListener('click', function() {
+                    console.log("CONSOLE: Botão 'Adicionar Pagamento' CLICADO."); 
+                    const methodId = paymentMethodSelect.value;
+                    const selectedOption = paymentMethodSelect.options[paymentMethodSelect.selectedIndex];
+                    const methodName = selectedOption ? selectedOption.dataset.methodName || selectedOption.text : 'Desconhecido';
+                    const amountStr = paymentAmountInput.value;
+
+                    if (!methodId) {
+                        alert("Selecione uma forma de pagamento.");
+                        return;
+                    }
+                    if (!amountStr) {
+                        alert("Insira o valor do pagamento.");
+                        return;
+                    }
+
+                    const amount = parseFloat(amountStr);
+                    if (isNaN(amount) || amount <= 0) {
+                        alert("O valor do pagamento deve ser um número positivo.");
+                        return;
+                    }
+
+                    let totalCurrentlyPaid = 0;
+                    currentPaymentsArray.forEach(p => totalCurrentlyPaid += parseFloat(p.amount));
+                    if ( (totalCurrentlyPaid + amount) > (saleTotalForModal + 0.001) ) { 
+                         alert(`O valor R$ ${amount.toFixed(2)} excede o total restante de R$ ${(saleTotalForModal - totalCurrentlyPaid).toFixed(2)}.`);
+                         if (paymentAmountInput) paymentAmountInput.value = (saleTotalForModal - totalCurrentlyPaid).toFixed(2);
+                         return;
+                    }
+
+                    currentPaymentsArray.push({
+                        payment_method_id: methodId,
+                        methodName: methodName,
+                        amount: amount.toFixed(2)
+                    });
+
+                    renderAddedPayments(); // Atualiza a lista visual e os totais
+
+                    // Lógica para perguntar se deseja adicionar mais pagamentos ou finalizar
+                    let newTotalPaid = 0;
+                    currentPaymentsArray.forEach(p => newTotalPaid += parseFloat(p.amount));
+                    const newRemaining = saleTotalForModal - newTotalPaid;
+
+                    
+
+                    // Prepara para o próximo pagamento ou o usuário clica em "Confirmar Venda"
+                    if (paymentMethodSelect) paymentMethodSelect.value = ""; 
+                    if (paymentAmountInput) {
+                        // Se ainda falta pagar, sugere o valor restante, senão limpa
+                        paymentAmountInput.value = (newRemaining > 0.001) ? newRemaining.toFixed(2) : "";
+                    }
+                    // Foca no select para o próximo pagamento, a menos que o total já tenha sido coberto
+                    // e o usuário possa querer clicar em "Confirmar Venda"
+                    if (newRemaining > 0.001) {
+                        if (paymentMethodSelect) paymentMethodSelect.focus(); 
+                    } else {
+                        if (paymentAmountInput) paymentAmountInput.focus(); // Ou focar no botão de confirmar se preferir
+                    }
+                });
+            }
+
+            // Listener para quando uma forma de pagamento é selecionada
+            if (paymentMethodSelect) {
+                paymentMethodSelect.addEventListener('change', function() {
+                    const selectedMethodId = this.value;
+                    const selectedMethodName = this.options[this.selectedIndex].text;
+                    console.log(`CONSOLE: Forma de Pagamento selecionada: ID=${selectedMethodId}, Nome='${selectedMethodName}'`);
+                });
+            }
+
+            // Listener para o botão "Confirmar Venda" NOVO (dentro do modal de múltiplos pagamentos)
+            if (confirmSaleWithPaymentsButton) {
+                confirmSaleWithPaymentsButton.addEventListener('click', function() {
+                    console.log("CONSOLE: Botão 'Confirmar Venda' (confirmSaleWithPaymentsButton) CLICADO."); // <--- ADICIONE ESTE LOG
+
+                    if (currentPaymentsArray.length === 0) {
+                        alert("Adicione pelo menos uma forma de pagamento.");
+                        return;
+                    }
+
+                    let totalPaidInModal = 0;
+                    currentPaymentsArray.forEach(p => totalPaidInModal += parseFloat(p.amount));
+
+                    // Verifica se o total pago bate com o total da venda (com uma pequena margem para floats)
+                    if (Math.abs(totalPaidInModal - saleTotalForModal) > 0.001) { 
+                        alert("A soma dos pagamentos (R$ " + totalPaidInModal.toFixed(2) + 
+                              ") não corresponde ao total da venda (R$ " + saleTotalForModal.toFixed(2) + 
+                              "). Verifique os valores.");
+                        return;
+                    }
+
+                    // Prepara os dados para enviar ao backend
+                    const saleData = {
+                        items: saleItemsArray.map(item => ({ // Itens da venda principal
+                            productId: item.productId,
+                            quantity: parseInt(item.quantity),
+                            price: item.price.toFixed(2) 
+                        })),
+                        payments: currentPaymentsArray.map(p => ({ // Lista de pagamentos do modal
+                            payment_method_id: p.payment_method_id,
+                            amount: p.amount 
+                        }))
+                    };
+
+                    console.log("CONSOLE (FRONTEND): Enviando para o backend (múltiplos pagamentos):", JSON.stringify(saleData, null, 2));
+                    const csrftoken = getCookie('csrftoken'); // Certifique-se que getCookie está definida
+
+                    fetch("{% url 'sales:finalize_sale' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: JSON.stringify(saleData)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("CONSOLE (FRONTEND): Resposta do backend:", data);
+                        if (data.status === 'success') {
+                            // alert(`Venda finalizada com sucesso!`); // Alerta removido
+                            clearCurrentSale(); // Limpa a venda principal no frontend
+                            if (finalizeSaleModalInstance) finalizeSaleModalInstance.hide(); // Fecha o modal
+                            // clearPaymentModal(); // Já será chamado pelo evento 'hidden.bs.modal'
+                        } else {
+                            alert(`Erro ao finalizar venda: ${data.message || 'Erro desconhecido.'}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error("CONSOLE (FRONTEND): Erro ao enviar venda para o backend:", error);
+                        alert("Erro de comunicação ao finalizar a venda. Verifique o console.");
+                    });
+                });
+            }
+
+
+
             function handleAddProductClick() {
                 console.log("CONSOLE: Botão 'Adicionar Produto' ou Enter pressionado.");
                 const code = barcodeInput.value.trim();
@@ -593,23 +720,7 @@
                     }
                 }
 
-                // Lógica para seleção de pagamento por teclado (1-4) quando o modal de finalização está visível
-                if (finalizeSaleModalElement && finalizeSaleModalElement.classList.contains('show')) {
-                    // Nova lógica para atalhos dinâmicos
-                    const keyPressed = event.key;
-                    // Permite até 9 formas de pagamento via atalho numérico.
-                    // Se você tiver mais, precisará de uma lógica diferente ou limitar os atalhos.
-                    if (/^[1-9]$/.test(keyPressed)) { 
-                        const keyNumber = parseInt(keyPressed, 10);
-                        // Encontra o botão correspondente ao data-key
-                        const targetButton = finalizeSaleModalElement.querySelector(`.payment-option-btn[data-key="${keyNumber}"]`);
-                        if (targetButton) {
-                            event.preventDefault();
-                            const paymentMethod = targetButton.dataset.paymentMethod;
-                            processPaymentSelection(paymentMethod);
-                        }
-                    }
-                }
+                // Se quiser adicionar atalhos para o novo modal de pagamento, a lógica precisaria ser implementada aqui.
             });
 
             if (finalizeSaleButton) {
@@ -620,18 +731,21 @@
                         return;
                     }
                     if (finalizeSaleModalInstance) {
+                        // Define o total da venda para o modal
+                        saleTotalForModal = currentSaleTotal; // currentSaleTotal é o total da sua venda principal
+                        if (modalSaleTotalSpan) modalSaleTotalSpan.textContent = saleTotalForModal.toFixed(2).replace('.', ',');
+                        
+                        clearPaymentModal(); // Limpa o estado do modal antes de mostrar
+                        
+                        // Sugestão: preencher automaticamente o valor do primeiro pagamento com o total restante
+                        if (paymentAmountInput) paymentAmountInput.value = saleTotalForModal.toFixed(2);
+
+                        // Define "Pix" (ID 1) como padrão no select
+                        if (paymentMethodSelect) {
+                            paymentMethodSelect.value = "1"; // ID do Pix
+                        }
                         finalizeSaleModalInstance.show();
                     }
-                });
-            }
-
-            // Adiciona listeners de clique para os botões de opção de pagamento
-            if (paymentOptionButtons) {
-                paymentOptionButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const selectedMethod = this.dataset.paymentMethod; // Pega o método do atributo data-payment-method
-                        processPaymentSelection(selectedMethod);
-                    });
                 });
             }
 
