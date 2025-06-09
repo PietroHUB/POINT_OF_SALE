@@ -83,7 +83,7 @@ def finalize_sale(request):
                     return JsonResponse({'status': 'error', 'message': f'Dados incompletos para o item: {item_data}. productId, quantity e price são obrigatórios.'}, status=400)
 
                 try:
-                    quantity = int(quantity_str)
+                    quantity = Decimal(str(quantity_str)) # Alterado para Decimal
                     unit_price = Decimal(str(unit_price_str)) # Converter para string primeiro evita problemas de precisão com floats
                 except (ValueError, TypeError, InvalidOperation):
                     logger.error("Quantidade ou preço inválido para o item: %s. Abortando venda.", item_data)

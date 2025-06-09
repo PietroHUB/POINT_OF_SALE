@@ -599,7 +599,7 @@
                     const saleData = {
                         items: saleItemsArray.map(item => ({ // Itens da venda principal
                             productId: item.productId,
-                            quantity: parseInt(item.quantity),
+                            quantity: item.quantity.toString(), // Alterado para enviar como string
                             price: item.price.toFixed(2) 
                         })),
                         payments: currentPaymentsArray.map(p => ({ // Lista de pagamentos do modal
@@ -668,7 +668,7 @@
             if (confirmQuantityButton) {
                 confirmQuantityButton.addEventListener('click', function() {
                     console.log("CONSOLE: Botão 'OK' do modal de quantidade clicado.");
-                    const quantityValue = parseInt(quantityInput.value, 10);
+                    const quantityValue = parseFloat(quantityInput.value); // Alterado para parseFloat
                     console.log("CONSOLE: Valor lido do input do modal:", quantityValue);
 
                     if (!isNaN(quantityValue) && quantityValue > 0) {

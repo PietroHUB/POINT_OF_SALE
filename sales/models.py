@@ -76,9 +76,11 @@ class SaleItem(models.Model):
         on_delete=models.PROTECT, # Impede que um produto seja deletado se estiver em algum SaleItem
         verbose_name=_("Produto")
     )
-    quantity = models.PositiveIntegerField(
+    quantity = models.DecimalField(
         _("Quantidade"),
-        help_text=_("Quantidade vendida deste produto.")
+        max_digits=10, # Defina a precisão total desejada
+        decimal_places=3, # Defina o número de casas decimais (ex: 3 para permitir 0.500 kg ou 1.25 unidades)
+        help_text=_("Quantidade vendida deste produto (pode ser decimal).")
     )
     unit_price = models.DecimalField(
         _("Preço Unitário na Venda"),
