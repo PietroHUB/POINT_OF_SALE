@@ -6,6 +6,7 @@ from .models import Product
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
+        'id',            # Adicionando o ID como primeira coluna
         'name',
         'internal_code', # Adicionando o código interno
         'price',         # Adicionando o preço de venda

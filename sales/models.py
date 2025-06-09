@@ -24,6 +24,7 @@ class Sale(models.Model):
     payment_method = models.CharField(
         _("Forma de Pagamento"),
         max_length=50,
+        default="Desconhecido", # Adicionar um default para migrações
         help_text=_("Forma de pagamento utilizada (Ex: Pix, Dinheiro, Cartão de Crédito).")
     )
     created_at = models.DateTimeField(
@@ -46,7 +47,7 @@ class Sale(models.Model):
         if is_new:
             logger.info("Nova Venda #%s salva no banco de dados. Total: %s, Pagamento: %s", self.id, self.total_amount, self.payment_method)
         else:
-            logger.info("Venda #%s atualizada no banco de dados.", self.id)
+            logger.info("Venda #%s atualizada no banco de dados.", self.id) # Removido total_amount para consistência com o log de criação
 
 class SaleItem(models.Model):
     sale = models.ForeignKey(

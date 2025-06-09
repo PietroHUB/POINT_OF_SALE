@@ -22,7 +22,7 @@ class SaleAdmin(admin.ModelAdmin):
         return False # Impede a criação de novas vendas diretamente pelo admin
 
     def has_change_permission(self, request, obj=None):
-        return False # Impede a alteração de vendas existentes pelo admin (ou True se quiser permitir apenas visualização)
+        return False # Impede a edição de vendas existentes pelo admin (exceto pelos inlines)
 
     def has_delete_permission(self, request, obj=None):
         return False # Impede a exclusão de vendas pelo admin
