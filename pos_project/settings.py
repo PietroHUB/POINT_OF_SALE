@@ -173,6 +173,4 @@ DECIMAL_SEPARATOR = ','
 # Mantenha-a segura e não a exponha publicamente.
 LICENSE_SECRET_KEY = "plima-secret-key-for-jwt-signature-2024"
 
-# A chave de licença fornecida pelo desenvolvedor.
-LICENSE_KEY = "PLIMA-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTM4OTk2ODYsImlhdCI6MTc1MTMwNzY4NiwiY2xpZW50ZSI6IkNsaWVudGUgUGFkclx1MDBlM28ifQ.Haig_0-PVILheh0tjWrhW4XssjO8jwM6-Mo9eWAihLc"
 

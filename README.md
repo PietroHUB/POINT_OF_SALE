@@ -35,11 +35,11 @@ O sistema utiliza **JSON Web Tokens (JWT)** assinados com o algoritmo **HS256** 
 
 ---
 
-## Guia Prático: Gerando e Instalando uma Nova Chave de Licença
+## Guia Prático de Ativação e Renovação de Licença
 
-Este guia destina-se ao desenvolvedor para a geração de chaves para novos clientes ou para renovação.
+Este guia descreve o processo de geração de uma nova chave pelo desenvolvedor e a ativação pelo cliente final através da página de licença do sistema.
 
-### Passo 1: Gerar a Chave
+### Parte 1: Geração da Chave (Para o Desenvolvedor)
 
 Utilize o script `gerador_de_chaves.py` que está na raiz do projeto. Este script **não deve ser distribuído** para o cliente.
 
@@ -48,37 +48,26 @@ Utilize o script `gerador_de_chaves.py` que está na raiz do projeto. Este scrip
     ```bash
     python gerador_de_chaves.py
     ```
-3.  O script irá imprimir no terminal uma nova chave de licença válida por 30 dias. A saída será parecida com esta:
+3.  O script irá gerar e imprimir uma nova chave de licença válida por 30 dias.
+4.  Copie a chave completa (iniciada com `PLIMA-...`) e envie-a para o seu cliente.
 
-    ```
-    --- SUA NOVA CHAVE DE LICENÇA ---
-    Cliente: Cliente Padrão
-    Validade: 30 dias
+### Parte 2: Instalação da Chave (Para o Cliente)
 
-    Copie a chave abaixo e cole no arquivo 'pos_project/settings.py', na variável LICENSE_KEY.
-    -----------------------------------
-    PLIMA-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTM5ODg0MDAsIm...
-    -----------------------------------
-    ```
+O cliente final deve seguir estes passos para ativar ou renovar a licença do sistema:
 
-### Passo 2: Instalar a Chave no Sistema do Cliente
+1.  Abra o navegador e acesse a **Página de Ativação de Licença** do sistema. Geralmente, o endereço é:
+    `http://localhost:8000/ativacao/`
 
-1.  Copie a chave completa gerada pelo script (incluindo o prefixo `PLIMA-`).
-2.  Abra o arquivo de configuração do projeto do cliente: `pos_project/settings.py`.
-3.  Localize a variável `LICENSE_KEY`.
-4.  Cole a nova chave como o valor da variável, substituindo a antiga. O resultado deve ser:
-    ```python
-    # pos_project/settings.py
+2.  Na página, ele verá o status da licença atual (se está válida, expirada ou inválida).
 
-    # ... outras configurações ...
+3.  No campo "Nova Chave de Licença", ele deve colar a chave completa que você forneceu.
 
-    LICENSE_KEY = "PLIMA-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTM5ODg0MDAsIm..."
-    ```
+4.  Clique no botão **"Salvar Nova Chave"**.
 
-5.  Salve o arquivo `settings.py`.
+### Parte 3: Reinicializaç��o do Sistema
 
-### Passo 3: Reiniciar o Servidor
+Para que a nova licença seja validada, o servidor do sistema precisa ser **reiniciado**.
 
-Para que a nova licença seja lida e validada, o servidor Django precisa ser reiniciado. Após a reinicialização, o sistema estará desbloqueado e funcional pelo período de validade da nova chave.
+Após a reinicialização, a nova licença estará ativa, e o sistema voltará a funcionar normalmente pelo período de validade da chave. A página de ativação mostrará o novo status e os dias restantes.
 
 

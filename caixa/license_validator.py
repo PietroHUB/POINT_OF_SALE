@@ -3,19 +3,35 @@
 import jwt
 from django.conf import settings
 from datetime import datetime
+import os
+
+# Define o caminho para o arquivo de licença na raiz do projeto
+LICENSE_FILE_PATH = os.path.join(settings.BASE_DIR, 'license.key')
+
+def get_license_key_from_file():
+    """Lê a chave de licença do arquivo license.key."""
+    try:
+        with open(LICENSE_FILE_PATH, 'r') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return "" # Retorna uma string vazia se o arquivo não existir
 
 def validar_licenca():
     """
-    Verifica a licença do settings.py.
+    Verifica a licença lida do arquivo license.key.
     Retorna um dicionário com o status da validação.
     """
+    license_key = get_license_key_from_file()
+    if not license_key:
+        return {'valida': False, 'dias_restantes': 0, 'mensagem': "Arquivo de licença 'license.key' não encontrado ou vazio."}
+
     try:
         # Remove o prefixo "PLIMA-" antes de decodificar
-        license_key = settings.LICENSE_KEY.replace("PLIMA-", "")
+        token = license_key.replace("PLIMA-", "")
 
         # Decodifica o token usando a mesma chave secreta
         payload = jwt.decode(
-            license_key, 
+            token, 
             settings.LICENSE_SECRET_KEY, 
             algorithms=["HS256"]
         )
@@ -25,7 +41,6 @@ def validar_licenca():
         dias_restantes = (data_expiracao - datetime.now()).days
 
         if dias_restantes < 0:
-            # Trata o caso de a licença ter expirado há alguns dias
             return {
                 'valida': False,
                 'dias_restantes': dias_restantes,
@@ -41,8 +56,6 @@ def validar_licenca():
         }
 
     except jwt.ExpiredSignatureError:
-        # A licença expirou
         return {'valida': False, 'dias_restantes': 0, 'mensagem': "Licença expirada!"}
     except (jwt.InvalidTokenError, AttributeError):
-        # A licença é inválida, mal formatada, não existe no settings, ou a assinatura não confere
-        return {'valida': False, 'dias_restantes': 0, 'mensagem': "Chave de licença inválida ou não configurada."}
+        return {'valida': False, 'dias_restantes': 0, 'mensagem': "Chave de licença inválida."}
