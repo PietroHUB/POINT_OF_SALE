@@ -1,0 +1,34 @@
+Ajustar:
+1) a virgula nos preços, tanto cadastro quanto na venda
+2) quantidade precisa ser menor que 1 e aceitar virgula;
+3) quantidade precisa zerar após adição do produção;
+4) adicionar atalho para finalizar a venda (colocar a descrição entre parênteses no botão);
+5) mudar formas de pagamento de lista para botões com atalhos de números ou as teclas F, seguindo cadastro do banco de dados;
+6) ajustar processo de finalizar a venda, precisa aceitar pagar valor além da conta fechada e depois calcular automaticamente o valor do troco, exibir essas etapas no cupom não fiscal;
+7) ao finalizar a venda com pagamento 'Fiado', solicitar / selecionar cadastro do cliente;
+8) ajustar cadastro de forma de pagamento, deixando formas de pagamento padrão;
+9) ajustar cadastro de forma de pagamento para ter a chave 'obrigatório cadastro cliente';
+10) ajustar venda para aceitar produtos sem quantidades;
+11) ajustar Vendas de forma a registrar o ponto de venda que foi realizada a venda;
+12) ajustar Vendas para registrar na parte sintética a coluna específica o total daquela venda;
+13) controle de sangria e suprimento, para controle de fechamento de caixa;
+14) adicionar no ponto de venda processo de exclusão de venda efetuada, exigir senha administrador;
+15) adicionar na área admin processo de exclusão de venda efetuada, exigir senha administrador;
+16) adicionar versão do app no topo do pdv, acima do titulo 'ponto de venda';
+17) no pdv adicionar botão de 'Fechamento' vai solicitar 'inicio' e 'fim', vai imprimir;
+18) no pdv adicionar botão de 'Abertura' vai solicitar 'inicio' e 'fim', vai precisar adicionar 'valor em R$' e vai imprimir;
+19) no pdv adicionar botão para calcular desconto na venda;
+20) verificar a adição de 2 preços, semelhante ao americanas ou simplesmente ter 2 preços no produto, ficando 1 atacado e outro varejo;
+
+
+
+
+
+
+Anota ai:
+
+site:
+
+http web.whatsappp/021555555/'texto: hamburger 2 carnes'
+
+
