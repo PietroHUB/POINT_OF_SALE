@@ -73,10 +73,11 @@
                             Abrir Calculadora de Troco
                         </button>
                     </div>
-                    <!-- Botões de Quantidade e Adicionar Produto -->
+                    <!-- Botão de Quantidade -->
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <button class="btn btn-secondary me-md-2" type="button" id="quantityButton" data-bs-toggle="modal" data-bs-target="#quantityModal">Quantidade (<span id="currentPendingQuantity">1</span>)</button>
-                        <button class="btn btn-primary flex-grow-1" type="button" id="addProductByCode">Adicionar Produto</button>
+                        <button class="btn btn-secondary me-md-2" type="button" data-bs-toggle="modal" data-bs-target="#quantityModal">Quantidade (<span id="currentPendingQuantity">1</span>)</button>
+                        <!-- O botão "Adicionar Produto" foi removido da interface para agilizar o fluxo. A funcionalidade continua via tecla Enter. -->
+                        <button class="btn btn-primary flex-grow-1" type="button" id="addProductByCode" style="display: none;">Adicionar Produto</button>
                     </div>
                 </div>
 
@@ -493,11 +494,28 @@
                 }
             });
             document.addEventListener('keydown', e => {
-                if (e.key === 'F9') { e.preventDefault(); finalizeSaleButton.click(); }
-                if (finalizeSaleModalInstance._isShown) {
-                    const key = parseInt(e.key, 10);
-                    if (!isNaN(key) && key > 0 && key <= paymentMethodButtons.length) { e.preventDefault(); paymentMethodButtons[key - 1].click(); }
+                document.addEventListener('keydown', e => {
+                // Atalho para finalizar venda
+                if (e.key === 'F9') {
+                    e.preventDefault();
+                    finalizeSaleButton.click();
                 }
+
+                // Atalhos para formas de pagamento (somente quando o modal está aberto)
+                if (finalizeSaleModalInstance._isShown) {
+                    // CORREÇÃO: Ignora os atalhos numéricos se o foco já estiver em um campo de input.
+                    const targetIsInput = e.target.tagName === 'INPUT';
+                    if (targetIsInput) {
+                        return; // Permite a digitação normal no campo.
+                    }
+
+                    const key = parseInt(e.key, 10);
+                    if (!isNaN(key) && key > 0 && key <= paymentMethodButtons.length) {
+                        e.preventDefault(); // Previne a ação padrão apenas se for um atalho válido.
+                        paymentMethodButtons[key - 1].click();
+                    }
+                }
+            });
             });
             function getCookie(name) { let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)'); return v ? v[2] : null; }
             renderSaleItems();
