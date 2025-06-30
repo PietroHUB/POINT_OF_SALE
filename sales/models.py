@@ -1,7 +1,7 @@
 from django.db import models
 from products.models import Product
-from caixa.models import PaymentMethod
-from customers.models import Customer # Importa o novo modelo Customer
+from caixa.models import PaymentMethod, PointOfSale # Importa PointOfSale
+from customers.models import Customer 
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
 import logging
@@ -9,6 +9,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Sale(models.Model):
+    point_of_sale = models.ForeignKey(
+        PointOfSale,
+        on_delete=models.PROTECT,
+        verbose_name=_("Ponto de Venda"),
+        related_name='sales'
+    )
     customer = models.ForeignKey(
         Customer,
         on_delete=models.PROTECT, # Evita excluir um cliente que tenha vendas associadas

@@ -60,12 +60,14 @@ def finalize_sale(request):
         items_data = data.get('items', [])
         payments_data = data.get('payments', [])
         customer_id = data.get('customer_id')
+        point_of_sale_id = data.get('point_of_sale_id') # Novo
 
-        if not items_data or not payments_data:
-            raise SaleValidationError("Dados de itens ou pagamento faltando.", status_code=400)
+        if not all([items_data, payments_data, point_of_sale_id]):
+            raise SaleValidationError("Dados de itens, pagamento ou ponto de venda faltando.", status_code=400)
 
         with transaction.atomic():
-            # --- 1. Valida e busca o cliente (se houver) ---
+            # --- 1. Valida e busca o cliente e o POS ---
+            pos_instance = PointOfSale.objects.get(id=point_of_sale_id)
             customer_instance = None
             if customer_id:
                 try:
@@ -74,8 +76,11 @@ def finalize_sale(request):
                     raise SaleValidationError(f"Cliente com ID {customer_id} não encontrado.")
 
             # --- 2. Cria a venda inicial ---
-            sale = Sale.objects.create(customer=customer_instance)
-            logger.info("Venda #%s criada para o cliente: %s", sale.id, customer_instance)
+            sale = Sale.objects.create(
+                customer=customer_instance,
+                point_of_sale=pos_instance
+            )
+            logger.info("Venda #%s criada para o cliente: %s no POS: %s", sale.id, customer_instance, pos_instance)
 
             # --- 3. Processa os itens da venda ---
             calculated_total = Decimal('0.00')
