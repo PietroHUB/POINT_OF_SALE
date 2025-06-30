@@ -19,6 +19,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('caixa.urls', namespace='caixa')), # Rota para o app caixa
-    path('sales/', include('sales.urls', namespace='sales')), # Rota para o app sales
+    path('', include('caixa.urls')),  # Inclui as URLs do app caixa na raiz
+    path('sales/', include('sales.urls')), # Inclui as URLs do app sales
+    path('customers/', include('customers.urls')), # Inclui as URLs do app customers
 ]

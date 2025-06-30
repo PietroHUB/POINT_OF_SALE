@@ -108,7 +108,7 @@
                             <span class="h5">TOTAL:</span>
                             <span class="total-display text-success">R$ <span id="saleTotal">0.00</span></span>
                         </div>
-                        <button class="btn btn-success btn-lg w-100 mt-3" id="finalizeSale">Finalizar Venda</button>
+                        <button class="btn btn-success btn-lg w-100 mt-3" id="finalizeSale">Finalizar Venda (F9)</button>
                     </div>
                 </div>
             </div>
@@ -151,21 +151,34 @@
                         <div class="col-md-6">
                             <h5>Adicionar Pagamento</h5>
                             <div class="mb-3">
-                                <label for="paymentMethodSelect" class="form-label">Forma de Pagamento:</label>
-                                <select class="form-select" id="paymentMethodSelect">
-                                    <option value="" disabled {% if not payment_methods_default_pix %}selected{% endif %}>Selecione...</option>
-                                    {% if payment_methods %}
-                                        {% for method in payment_methods %}
-                                        {# Assumindo que o ID do Pix é 1. Ajuste se for diferente. #}
-                                        <option value="{{ method.id }}" 
+                                <label class="form-label">Forma de Pagamento:</label>
+                                <div id="paymentMethodButtons" class="d-grid gap-2">
+                                    <!-- Botões serão gerados aqui pelo Django -->
+                                    {% for method in payment_methods %}
+                                        <button type="button" class="btn btn-outline-primary payment-method-btn" 
+                                                data-method-id="{{ method.id }}" 
                                                 data-method-name="{{ method.description }}"
-                                                {% if method.id == 1 %}selected{% endif %}> 
+                                                data-requires-customer="{{ method.requires_customer|yesno:'true,false' }}">
                                             {{ method.description }}
-                                        </option>
-                                        {% endfor %}
-                                    {% endif %}
-                                </select>
+                                        </button>
+                                    {% endfor %}
+                                </div>
+                                <!-- Input oculto para armazenar o ID da forma de pagamento selecionada -->
+                                <input type="hidden" id="selectedPaymentMethodId">
                             </div>
+
+                            <!-- Seção de Seleção de Cliente (inicialmente oculta) -->
+                            <div id="customerSelectionArea" class="mb-3" style="display: none;">
+                                <hr>
+                                <label for="customerSearchInput" class="form-label">Buscar Cliente:</label>
+                                <input type="text" id="customerSearchInput" class="form-control" placeholder="Digite o nome do cliente...">
+                                <div id="customerSearchResults" class="list-group mt-2" style="max-height: 150px; overflow-y: auto;"></div>
+                                <div id="selectedCustomerDisplay" class="mt-2">
+                                    <strong>Cliente Selecionado:</strong> <span id="selectedCustomerName">Nenhum</span>
+                                </div>
+                                <input type="hidden" id="selectedCustomerId">
+                            </div>
+
                             <div class="mb-3">
                                 <label for="paymentAmountInput" class="form-label">Valor a Pagar (R$):</label>
                                 <input type="number" class="form-control" id="paymentAmountInput" placeholder="0.00" step="0.01">
@@ -245,49 +258,20 @@
     <!-- Bootstrap JS Bundle (Popper.js incluído) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
     <script>
-        // Em breve, nosso JavaScript para interatividade!
-        console.log("Página de vendas carregada.");
-        
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("CONSOLE: DOM completamente carregado e parseado.");
-
+            // --- Seletores de Elementos ---
             const barcodeInput = document.getElementById('barcodeScanInput');
-
-            // Mova a declaração de productsData para cá, no início do DOMContentLoaded
-            const productsData = [
-                {% for product in products %}
-                {
-                    id: "{{ product.id }}",
-                    name: "{{ product.name|escapejs }}",
-                    price: "{{ product.price }}",
-                    internal_code: "{{ product.internal_code|escapejs }}",
-                    barcode: "{{ product.barcode|escapejs }}"
-                },
-                {% endfor %}
-            ];
-            console.log("CONSOLE: Dados dos produtos disponíveis para JS:", productsData); // Agora productsData está definida
-
-            if (barcodeInput) {
-                barcodeInput.focus();
-                console.log("CONSOLE: Foco definido no campo barcodeScanInput.");
-            }
-
             const addProductButton = document.getElementById('addProductByCode');
             const saleItemsList = document.getElementById('saleItemsList');
             const saleTotalSpan = document.getElementById('saleTotal');
             const finalizeSaleButton = document.getElementById('finalizeSale');
             const emptySaleMessage = document.getElementById('emptySaleMessage');
-
-            // Elementos do Modal de Quantidade
-            const quantityModalElement = document.getElementById('quantityModal');
-            const quantityModal = quantityModalElement ? new bootstrap.Modal(quantityModalElement) : null; // Instância do modal Bootstrap
             const quantityInput = document.getElementById('quantityInput');
             const confirmQuantityButton = document.getElementById('confirmQuantityButton');
-            const currentPendingQuantitySpan = document.getElementById('currentPendingQuantity'); // Span para mostrar a quantidade pendente no botão
-            
-            // Elementos do NOVO Modal de Finalização de Múltiplos Pagamentos
+            const currentPendingQuantitySpan = document.getElementById('currentPendingQuantity');
+            const finalizeSaleModalElement = document.getElementById('finalizeSaleModal');
+            const finalizeSaleModalInstance = finalizeSaleModalElement ? new bootstrap.Modal(finalizeSaleModalElement) : null;
             const modalSaleTotalSpan = document.getElementById('modalSaleTotal');
-            const paymentMethodSelect = document.getElementById('paymentMethodSelect');
             const paymentAmountInput = document.getElementById('paymentAmountInput');
             const addPaymentButton = document.getElementById('addPaymentButton');
             const addedPaymentsList = document.getElementById('addedPaymentsList');
@@ -295,699 +279,229 @@
             const modalTotalPaidSpan = document.getElementById('modalTotalPaid');
             const modalAmountRemainingSpan = document.getElementById('modalAmountRemaining');
             const confirmSaleWithPaymentsButton = document.getElementById('confirmSaleWithPaymentsButton');
-            // const cancelSaleFinalizationButton = document.getElementById('cancelSaleFinalizationButton'); // Já deve existir, mas para clareza
+            const paymentMethodButtonsContainer = document.getElementById('paymentMethodButtons');
+            const selectedPaymentMethodIdInput = document.getElementById('selectedPaymentMethodId');
+            const paymentMethodButtons = document.querySelectorAll('.payment-method-btn');
+            // --- Novos Seletores de Cliente ---
+            const customerSelectionArea = document.getElementById('customerSelectionArea');
+            const customerSearchInput = document.getElementById('customerSearchInput');
+            const customerSearchResults = document.getElementById('customerSearchResults');
+            const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
+            const selectedCustomerNameSpan = document.getElementById('selectedCustomerName');
 
-            // Elementos do Modal de Finalização de Venda (o finalizeSaleModalElement e finalizeSaleModalInstance já devem existir)
-            const finalizeSaleModalElement = document.getElementById('finalizeSaleModal');
-            const finalizeSaleModalInstance = finalizeSaleModalElement ? new bootstrap.Modal(finalizeSaleModalElement) : null;
-            // const paymentOptionButtons = document.querySelectorAll('.payment-option-btn'); // REMOVIDO
+            // --- Dados e Estado ---
+            const productsData = [ {% for product in products %}{ id: "{{ product.id }}", name: "{{ product.name|escapejs }}", price: "{{ product.price }}", internal_code: "{{ product.internal_code|escapejs }}", barcode: "{{ product.barcode|escapejs }}" }, {% endfor %} ];
+            let currentSaleTotal = 0.00, saleItemsArray = [], nextSaleItemId = 1, pendingQuantity = 1, currentPaymentsArray = [], saleTotalForModal = 0;
 
-            // Elementos do Modal da Calculadora
-            const calculatorModalElement = document.getElementById('calculatorModal');
-            // const calculatorModalInstance = calculatorModalElement ? new bootstrap.Modal(calculatorModalElement) : null; // Instância se precisar controlar via JS
-            let calculatorKeydownListener = null; // Variável para armazenar a função do listener de teclado
-
-
-            let currentPaymentsArray = []; // NOVO: Para armazenar os pagamentos adicionados no modal
-            let saleTotalForModal = 0;    // NOVO: Para armazenar o total da venda quando o modal de pagamento é aberto
-
-            let currentSaleTotal = 0.00;
-            let saleItemsArray = []; // Array para armazenar os objetos dos produtos na venda atual
-            let nextSaleItemId = 1; // Contador para gerar IDs únicos para os itens da venda
-            let pendingQuantity = 1; // Variável para armazenar a quantidade definida pelo modal
-
-            function clearCurrentSale() {
-                console.log("CONSOLE: Limpando venda atual.");
-                saleItemsArray = [];
-                currentSaleTotal = 0.00;
-                nextSaleItemId = 1;
+            // --- Funções ---
+            function addProductToSale(product) {
+                const itemSubtotal = parseFloat(product.price) * pendingQuantity;
+                const saleItemId = nextSaleItemId++;
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                listItem.setAttribute('data-sale-item-id', saleItemId);
+                listItem.innerHTML = `<div><span>${product.internal_code || product.barcode}</span> | <span class="mx-1">${product.name}</span> | <span class="badge bg-info rounded-pill me-1">${pendingQuantity}x</span> | <span>R$ ${itemSubtotal.toFixed(2).replace('.', ',')}</span></div><button class="btn btn-danger btn-sm remove-sale-item-btn" data-remove-id="${saleItemId}">X</button>`;
+                saleItemsArray.push({ id: saleItemId, productId: product.id, quantity: pendingQuantity, price: parseFloat(product.price), subtotal: itemSubtotal, listItemElement: listItem });
+                currentSaleTotal += itemSubtotal;
                 pendingQuantity = 1;
-
+                if (quantityInput) quantityInput.value = "1";
+                if (currentPendingQuantitySpan) currentPendingQuantitySpan.textContent = "1";
+                barcodeInput.value = "";
+                barcodeInput.focus();
+                renderSaleItems();
                 updateSaleTotalOnScreen();
-                renderSaleItems(); // Isso mostrará a mensagem de "Nenhum item"
-                if (currentPendingQuantitySpan) currentPendingQuantitySpan.textContent = pendingQuantity;
-                if (barcodeInput) barcodeInput.focus();
             }
 
-            // A função processPaymentSelection foi removida pois a lógica de pagamento foi refeita.
-
-            function updateSaleTotalOnScreen() {
-                saleTotalSpan.textContent = currentSaleTotal.toFixed(2).replace('.', ',');
-                console.log("CONSOLE: Total da venda atualizado na tela para: R$", currentSaleTotal.toFixed(2));
+            function removeSaleItem(id) {
+                const index = saleItemsArray.findIndex(item => item.id === id);
+                if (index > -1) {
+                    currentSaleTotal -= saleItemsArray[index].subtotal;
+                    saleItemsArray.splice(index, 1);
+                    updateSaleTotalOnScreen();
+                    renderSaleItems();
+                }
             }
 
             function renderSaleItems() {
-                console.log("CONSOLE: Renderizando itens da venda.");
-                saleItemsList.innerHTML = ''; // 1. Limpa a lista visual atual
-
-                if (saleItemsArray.length === 0) { // 2. Verifica se há itens no array
-                    if(emptySaleMessage) emptySaleMessage.style.display = 'block'; // Mostra a mensagem se a lista estiver vazia
-                    console.log("CONSOLE: Nenhum item na venda para renderizar.");
-                    return; // Sai da função se não há itens
-                }
-                if(emptySaleMessage) emptySaleMessage.style.display = 'none'; // Esconde a mensagem se houver itens
-
-                // 3. Adiciona cada item do array de volta na lista visual
-                saleItemsArray.forEach(item => {
-                    saleItemsList.appendChild(item.listItemElement); // Adiciona o elemento <li> previamente criado
-                });
-                console.log("CONSOLE: Itens da venda renderizados.");
+                saleItemsList.innerHTML = '';
+                emptySaleMessage.style.display = saleItemsArray.length === 0 ? 'block' : 'none';
+                saleItemsArray.forEach(item => saleItemsList.appendChild(item.listItemElement));
+                if (saleItemsArray.length > 0) saleItemsList.scrollTop = saleItemsList.scrollHeight;
             }
 
-            function addProductToSale(product) {
-                console.log("CONSOLE: Iniciando adição do produto à venda:", product.name);
+            function updateSaleTotalOnScreen() {
+                saleTotalSpan.textContent = currentSaleTotal.toFixed(2).replace('.', ',');
+            }
 
-                // Esconde a mensagem de "Nenhum item" se ela estiver visível
-                if (emptySaleMessage && emptySaleMessage.style.display !== 'none') {
-                    emptySaleMessage.style.display = 'none';
-                    console.log("CONSOLE: Mensagem 'Nenhum item na venda' escondida.");
-                }
-
-                // Cria o elemento li para a lista de itens da venda
-                const listItem = document.createElement('li');
-                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                const productBarcode = product.barcode ? product.barcode : (product.internal_code ? product.internal_code : 'S/C'); // Usa barcode, senão internal_code, senão 'S/C' (Sem Código)
-                // const productPriceFormatted = parseFloat(product.price).toFixed(2).replace('.', ','); // Não precisamos mais do preço unitário formatado aqui
-                const itemSubtotal = parseFloat(product.price) * pendingQuantity;
-                const itemSubtotalFormatted = itemSubtotal.toFixed(2).replace('.', ',');
-                const saleItemId = nextSaleItemId++; // Gera um ID único para este item na venda
-
-                listItem.setAttribute('data-sale-item-id', saleItemId); // Adiciona o ID único ao elemento <li>
-
-                listItem.innerHTML = `
-                    <div class="flex-grow-1"> <!-- Div para o conteúdo do item -->
-                        <span>${productBarcode}</span> |
-                        <span class="mx-1">${product.name}</span> |
-                        <span class="badge bg-info rounded-pill me-1">${pendingQuantity}x</span> |
-                        <span>R$ ${itemSubtotalFormatted}</span>
-                    </div>
-                    <!-- Botão de Remover -->
-                    <button class="btn btn-danger btn-sm remove-sale-item-btn" data-remove-id="${saleItemId}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
-                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-                        </svg>
-                    </button>
-                `;
-
-                // Adiciona o item ao array de itens da venda
-                saleItemsArray.push({
-                    id: saleItemId,                 // ID único para este item na venda
-                    productId: product.id,          // ID do produto (do productsData)
-                    productName: product.name,
-                    quantity: pendingQuantity,
-                    price: parseFloat(product.price), // Preço unitário
-                    subtotal: itemSubtotal,         // Subtotal calculado
-                    listItemElement: listItem       // Referência ao elemento <li> criado
-                });
-
-                renderSaleItems(); // Chama a função para redesenhar a lista visual
-                console.log("CONSOLE: Produto", product.name, "adicionado à lista visual da venda.");
-
-                // Rolar a lista de itens da venda para o final
-                if (saleItemsList) {
-                    saleItemsList.scrollTop = saleItemsList.scrollHeight;
-                    console.log("CONSOLE: Lista de itens da venda rolada para o final.");
-                }
-
-                // Atualiza o valor total da venda
-                currentSaleTotal += itemSubtotal;
+            function clearCurrentSale() {
+                saleItemsArray = [];
+                currentSaleTotal = 0.00;
+                nextSaleItemId = 1;
+                renderSaleItems();
                 updateSaleTotalOnScreen();
-
-                // Limpa o campo de input e foca nele novamente
-                barcodeInput.value = "";
                 barcodeInput.focus();
-                console.log("CONSOLE: Campo barcodeScanInput limpo e focado para o próximo item.");
-
-                // Resetar a quantidade pendente para 1 após adicionar o item
-                pendingQuantity = 1;
-                if(currentPendingQuantitySpan) currentPendingQuantitySpan.textContent = pendingQuantity;
-                console.log("CONSOLE: Quantidade pendente resetada para 1.");
             }
 
-            // Função para remover um item da venda
-            function removeSaleItem(saleItemIdToRemove) {
-                console.log("CONSOLE: Tentando remover item da venda com ID:", saleItemIdToRemove);
-                // 1. Encontra o índice do item no array pelo seu ID único
-                const itemIndex = saleItemsArray.findIndex(item => item.id === saleItemIdToRemove);
-
-                if (itemIndex > -1) { // 2. Se o item foi encontrado no array
-                    const removedItem = saleItemsArray.splice(itemIndex, 1)[0]; // Remove o item do array e o armazena
-                    console.log("CONSOLE: Item removido do array:", removedItem);
-
-                    // 3. Subtrai o subtotal do item removido do total geral
-                    currentSaleTotal -= removedItem.subtotal;
-                    updateSaleTotalOnScreen(); // Atualiza o total na tela
-
-                    renderSaleItems(); // 4. Re-renderiza a lista visual sem o item removido
-
-                    console.log("CONSOLE: Item removido da tela. Novo total:", currentSaleTotal.toFixed(2));
-                    if (barcodeInput) barcodeInput.focus(); // Volta o foco para o input de código de barras
-                } else {
-                    console.log("CONSOLE: Item com ID", saleItemIdToRemove, "não encontrado no array saleItemsArray.");
-                }
-            }
-
-            // --- Funções para o NOVO Modal de Múltiplos Pagamentos ---
-            
-            // Esta função calcula e atualiza os totais (pago, restante) no modal de pagamento.
-            // Também habilita/desabilita o botão de confirmar venda com base nesses totais.
-            function updatePaymentModalTotals() {
-                let totalPaidInModal = 0;
-                currentPaymentsArray.forEach(p => totalPaidInModal += parseFloat(p.amount));
-
-                const remaining = saleTotalForModal - totalPaidInModal;
-
-                if (modalTotalPaidSpan) modalTotalPaidSpan.textContent = `R$ ${totalPaidInModal.toFixed(2).replace('.', ',')}`;
-                if (modalAmountRemainingSpan) {
-                    modalAmountRemainingSpan.textContent = `R$ ${remaining.toFixed(2).replace('.', ',')}`;
-                    modalAmountRemainingSpan.classList.toggle('text-danger', remaining > 0.001); // Pequena margem para float
-                    modalAmountRemainingSpan.classList.toggle('text-success', remaining <= 0.001);
-                }
-
-                if (confirmSaleWithPaymentsButton) {
-                    confirmSaleWithPaymentsButton.disabled = Math.abs(remaining) > 0.001;
-                }
-            }
-
-            // Esta função atualiza a lista visual de pagamentos que foram adicionados no modal.
-            // Ela limpa a lista existente e recria os itens com base no array 'currentPaymentsArray'.
-            // Ao final, chama updatePaymentModalTotals() para que os valores sejam recalculados.
-            function renderAddedPayments() {
-                if (!addedPaymentsList || !noPaymentsAddedMsg) return;
-                addedPaymentsList.innerHTML = ''; 
-
-                if (currentPaymentsArray.length === 0) {
-                    noPaymentsAddedMsg.style.display = 'block';
-                } else {
-                    noPaymentsAddedMsg.style.display = 'none';
-                    currentPaymentsArray.forEach((payment, index) => {
-                        const listItem = document.createElement('li');
-                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-                        listItem.innerHTML = `
-                            <span>${payment.methodName}: R$ ${parseFloat(payment.amount).toFixed(2).replace('.', ',')}</span>
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-added-payment-btn" data-index="${index}">X</button>
-                        `;
-                        addedPaymentsList.appendChild(listItem);
-                    });
-                }
-                updatePaymentModalTotals(); // Atualiza os totais sempre que a lista de pagamentos mudar
-            }
-            
-            function clearPaymentModal() {
-                currentPaymentsArray = []; // Limpa o array de pagamentos
-                if(paymentMethodSelect) paymentMethodSelect.value = ""; // Reseta o select
-                if(paymentAmountInput) paymentAmountInput.value = "";   // Limpa o input de valor
-                renderAddedPayments(); // Re-renderiza a lista (que mostrará "Nenhum pagamento") e atualiza os totais
-                if(confirmSaleWithPaymentsButton) confirmSaleWithPaymentsButton.disabled = true; // Desabilita o botão de confirmar
-            }
-
-            // Listener para o botão "Adicionar Pagamento" dentro do modal
-            if (addPaymentButton) {
-                addPaymentButton.addEventListener('click', function() {
-                    console.log("CONSOLE: Botão 'Adicionar Pagamento' CLICADO."); 
-                    const methodId = paymentMethodSelect.value;
-                    const selectedOption = paymentMethodSelect.options[paymentMethodSelect.selectedIndex];
-                    const methodName = selectedOption ? selectedOption.dataset.methodName || selectedOption.text : 'Desconhecido';
-                    const amountStr = paymentAmountInput.value;
-
-                    if (!methodId) {
-                        alert("Selecione uma forma de pagamento.");
-                        return;
-                    }
-                    if (!amountStr) {
-                        alert("Insira o valor do pagamento.");
-                        return;
-                    }
-
-                    const amount = parseFloat(amountStr);
-                    if (isNaN(amount) || amount <= 0) {
-                        alert("O valor do pagamento deve ser um número positivo.");
-                        return;
-                    }
-
-                    let totalCurrentlyPaid = 0;
-                    currentPaymentsArray.forEach(p => totalCurrentlyPaid += parseFloat(p.amount));
-                    if ( (totalCurrentlyPaid + amount) > (saleTotalForModal + 0.001) ) { 
-                         alert(`O valor R$ ${amount.toFixed(2)} excede o total restante de R$ ${(saleTotalForModal - totalCurrentlyPaid).toFixed(2)}.`);
-                         if (paymentAmountInput) paymentAmountInput.value = (saleTotalForModal - totalCurrentlyPaid).toFixed(2);
-                         return;
-                    }
-
-                    currentPaymentsArray.push({
-                        payment_method_id: methodId,
-                        methodName: methodName,
-                        amount: amount.toFixed(2)
-                    });
-
-                    renderAddedPayments(); // Atualiza a lista visual e os totais
-
-                    // Lógica para perguntar se deseja adicionar mais pagamentos ou finalizar
-                    let newTotalPaid = 0;
-                    currentPaymentsArray.forEach(p => newTotalPaid += parseFloat(p.amount));
-                    const newRemaining = saleTotalForModal - newTotalPaid;
-
-                    
-
-                    // Prepara para o próximo pagamento ou o usuário clica em "Confirmar Venda"
-                    if (paymentMethodSelect) paymentMethodSelect.value = ""; 
-                    if (paymentAmountInput) {
-                        // Se ainda falta pagar, sugere o valor restante, senão limpa
-                        paymentAmountInput.value = (newRemaining > 0.001) ? newRemaining.toFixed(2) : "";
-                    }
-                    // Foca no select para o próximo pagamento, a menos que o total já tenha sido coberto
-                    // e o usuário possa querer clicar em "Confirmar Venda"
-                    if (newRemaining > 0.001) {
-                        if (paymentMethodSelect) paymentMethodSelect.focus(); 
-                    } else {
-                        if (paymentAmountInput) paymentAmountInput.focus(); // Ou focar no botão de confirmar se preferir
-                    }
-                });
-            }
-
-            // Listener para quando uma forma de pagamento é selecionada
-            if (paymentMethodSelect) {
-                paymentMethodSelect.addEventListener('change', function() {
-                    const selectedMethodId = this.value;
-                    const selectedMethodName = this.options[this.selectedIndex].text;
-                    console.log(`CONSOLE: Forma de Pagamento selecionada: ID=${selectedMethodId}, Nome='${selectedMethodName}'`);
-                });
-            }
-
-            // Listener para o botão "Confirmar Venda" NOVO (dentro do modal de múltiplos pagamentos)
-            if (confirmSaleWithPaymentsButton) {
-                confirmSaleWithPaymentsButton.addEventListener('click', function() {
-                    console.log("CONSOLE: Botão 'Confirmar Venda' (confirmSaleWithPaymentsButton) CLICADO."); // <--- ADICIONE ESTE LOG
-
-                    if (currentPaymentsArray.length === 0) {
-                        alert("Adicione pelo menos uma forma de pagamento.");
-                        return;
-                    }
-
-                    let totalPaidInModal = 0;
-                    currentPaymentsArray.forEach(p => totalPaidInModal += parseFloat(p.amount));
-
-                    // Verifica se o total pago bate com o total da venda (com uma pequena margem para floats)
-                    if (Math.abs(totalPaidInModal - saleTotalForModal) > 0.001) { 
-                        alert("A soma dos pagamentos (R$ " + totalPaidInModal.toFixed(2) + 
-                              ") não corresponde ao total da venda (R$ " + saleTotalForModal.toFixed(2) + 
-                              "). Verifique os valores.");
-                        return;
-                    }
-
-                    // Prepara os dados para enviar ao backend
-                    const saleData = {
-                        items: saleItemsArray.map(item => ({ // Itens da venda principal
-                            productId: item.productId,
-                            quantity: item.quantity.toString(), // Alterado para enviar como string
-                            price: item.price.toFixed(2) 
-                        })),
-                        payments: currentPaymentsArray.map(p => ({ // Lista de pagamentos do modal
-                            payment_method_id: p.payment_method_id,
-                            amount: p.amount 
-                        }))
-                    };
-
-                    console.log("CONSOLE (FRONTEND): Enviando para o backend (múltiplos pagamentos):", JSON.stringify(saleData, null, 2));
-                    const csrftoken = getCookie('csrftoken'); // Certifique-se que getCookie está definida
-
-                    fetch("{% url 'sales:finalize_sale' %}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrftoken
-                        },
-                        body: JSON.stringify(saleData)
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log("CONSOLE (FRONTEND): Resposta do backend:", data);
-                        if (data.status === 'success') {
-                            // alert(`Venda finalizada com sucesso!`); // Alerta removido
-                            clearCurrentSale(); // Limpa a venda principal no frontend
-                            if (finalizeSaleModalInstance) finalizeSaleModalInstance.hide(); // Fecha o modal
-                            // clearPaymentModal(); // Já será chamado pelo evento 'hidden.bs.modal'
-                        } else {
-                            alert(`Erro ao finalizar venda: ${data.message || 'Erro desconhecido.'}`);
-                        }
-                    })
-                    .catch(error => {
-                        console.error("CONSOLE (FRONTEND): Erro ao enviar venda para o backend:", error);
-                        alert("Erro de comunicação ao finalizar a venda. Verifique o console.");
-                    });
-                });
-            }
-
-
-
-            function handleAddProductClick() {
-                console.log("CONSOLE: Botão 'Adicionar Produto' ou Enter pressionado.");
-                const code = barcodeInput.value.trim();
-                console.log("CONSOLE: Código lido do input:", code);
-
-                if (code === "") {
-                    console.log("CONSOLE: Campo de código está vazio. Nenhuma ação.");
-                    alert("Por favor, insira ou leia um código de produto.");
-                    barcodeInput.focus();
+            function handleAddPayment() {
+                const methodId = selectedPaymentMethodIdInput.value;
+                const selectedButton = paymentMethodButtonsContainer.querySelector(`.payment-method-btn[data-method-id="${methodId}"]`);
+                if (!methodId) { alert("Selecione uma forma de pagamento."); return; }
+                const amount = parseFloat(paymentAmountInput.value.replace(',', '.'));
+                if (isNaN(amount) || amount <= 0) { alert("Insira um valor de pagamento válido."); paymentAmountInput.focus(); return; }
+                
+                // Validação de cliente para método "Fiado"
+                if (selectedButton.dataset.requiresCustomer === 'true' && !selectedCustomerIdInput.value) {
+                    alert('Para esta forma de pagamento, é obrigatório selecionar um cliente.');
+                    customerSearchInput.focus();
                     return;
                 }
 
-                const foundProduct = productsData.find(p => p.barcode === code || p.internal_code === code);
-
-                if (foundProduct) {
-                    console.log("CONSOLE: Produto encontrado:", foundProduct);
-                    addProductToSale(foundProduct);
-                } else {
-                    console.log("CONSOLE: Produto com código '"+ code +"' não encontrado.");
-                    alert(`Produto com código "${code}" não encontrado.`);
-                    barcodeInput.select(); // Seleciona o texto para fácil substituição
-                }
+                currentPaymentsArray.push({ payment_method_id: methodId, methodName: selectedButton.dataset.methodName, amount: amount.toFixed(2) });
+                renderAddedPayments();
+                selectedPaymentMethodIdInput.value = '';
+                styleSelectedPaymentButton(null);
+                const totalPaid = currentPaymentsArray.reduce((acc, p) => acc + parseFloat(p.amount), 0);
+                if (totalPaid >= saleTotalForModal) { confirmSaleWithPaymentsButton.focus(); paymentAmountInput.value = ''; } 
+                else { paymentAmountInput.value = (saleTotalForModal - totalPaid).toFixed(2).replace('.', ','); paymentAmountInput.focus(); }
             }
 
-            // --- Lógica do Modal de Quantidade ---
-            if (confirmQuantityButton) {
-                confirmQuantityButton.addEventListener('click', function() {
-                    console.log("CONSOLE: Botão 'OK' do modal de quantidade clicado.");
-                    const quantityValue = parseFloat(quantityInput.value); // Alterado para parseFloat
-                    console.log("CONSOLE: Valor lido do input do modal:", quantityValue);
-
-                    if (!isNaN(quantityValue) && quantityValue > 0) {
-                        pendingQuantity = quantityValue;
-                        if(currentPendingQuantitySpan) currentPendingQuantitySpan.textContent = pendingQuantity;
-                        console.log("CONSOLE: Quantidade pendente definida para:", pendingQuantity);
-                        if (quantityModal) quantityModal.hide();
-                        if (barcodeInput) barcodeInput.focus();
-                        console.log("CONSOLE: Modal de quantidade fechado. Foco no barcodeInput.");
-                    } else {
-                        console.log("CONSOLE: Quantidade inválida digitada no modal.");
-                        alert("Por favor, insira uma quantidade numérica válida e maior que zero.");
-                        if (quantityInput) quantityInput.select();
-                    }
+            function renderAddedPayments() {
+                addedPaymentsList.innerHTML = '';
+                let totalPaid = 0;
+                noPaymentsAddedMsg.style.display = currentPaymentsArray.length === 0 ? 'block' : 'none';
+                currentPaymentsArray.forEach((p, index) => {
+                    totalPaid += parseFloat(p.amount);
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    li.innerHTML = `<span>${p.methodName}: R$ ${parseFloat(p.amount).toFixed(2).replace('.', ',')}</span><button type="button" class="btn btn-sm btn-outline-danger remove-added-payment-btn" data-index="${index}">X</button>`;
+                    addedPaymentsList.appendChild(li);
                 });
+                updatePaymentModalTotals(totalPaid);
             }
 
-            // Delegação de evento para os botões de remover item
-            // Adicionamos o listener ao elemento pai (saleItemsList)
-            if (saleItemsList) {
-                saleItemsList.addEventListener('click', function(event) {
-                    // Verifica se o clique foi em um botão com a classe 'remove-sale-item-btn' ou dentro dele
-                    const removeButton = event.target.closest('.remove-sale-item-btn');
-                    if (removeButton) { // Se um botão de remover foi clicado
-                        const saleItemId = parseInt(removeButton.dataset.removeId, 10); // Pega o ID do item a ser removido do atributo data-remove-id
-                        console.log("CONSOLE: Botão remover clicado para o item ID:", saleItemId);
-                        removeSaleItem(saleItemId); // Chama a função de remoção
-                    }
-                });
+            function updatePaymentModalTotals(totalPaid) {
+                const difference = totalPaid - saleTotalForModal;
+                modalTotalPaidSpan.textContent = `R$ ${totalPaid.toFixed(2).replace('.', ',')}`;
+                modalAmountRemainingSpan.innerHTML = difference >= -0.001 ? `Troco: <span class="text-success">R$ ${difference.toFixed(2).replace('.', ',')}</span>` : `Restante: <span class="text-danger">R$ ${Math.abs(difference).toFixed(2).replace('.', ',')}</span>`;
+                confirmSaleWithPaymentsButton.disabled = difference < -0.001;
             }
 
-            // Adiciona um listener global para a tecla 'Delete'
-            //para funcionar, como o cursor sempre fica no codigo de barras
-            //sugiro que a pessoa aperte tab e depois delete
-            document.addEventListener('keydown', function(event) {
-                // Verifica se a tecla pressionada é 'Delete' (ou 'Del' em alguns teclados)
-                // E verifica se o foco NÃO está em um campo de input de texto
-                // Isso evita que a tecla Delete funcione para remover itens enquanto o usuário está digitando em um campo
-                const isTextInput = event.target.tagName === 'INPUT' && event.target.type === 'text';
-                const isNumberInput = event.target.tagName === 'INPUT' && event.target.type === 'number';
+            function styleSelectedPaymentButton(selectedBtn) {
+                paymentMethodButtons.forEach(btn => { btn.classList.remove('btn-primary'); btn.classList.add('btn-outline-primary'); });
+                if (selectedBtn) { selectedBtn.classList.remove('btn-outline-primary'); selectedBtn.classList.add('btn-primary'); }
+            }
 
-                // Lógica para a tecla Delete (remover último item)
-                if ((event.key === 'Delete' || event.key === 'Del') && !isTextInput && !isNumberInput) {
-                    console.log("CONSOLE: Tecla 'Delete' pressionada.");
-                    if (saleItemsArray.length > 0) {
-                        const lastItem = saleItemsArray[saleItemsArray.length - 1];
-                        removeSaleItem(lastItem.id);
-                        event.preventDefault();
-                    }
-                }
+            function finalizeSale() {
+                const saleData = {
+                    items: saleItemsArray.map(item => ({ productId: item.productId, quantity: item.quantity.toString(), price: item.price.toFixed(2) })),
+                    payments: currentPaymentsArray,
+                    customer_id: selectedCustomerIdInput.value || null // Envia o ID do cliente
+                };
+                fetch("{% url 'sales:finalize_sale' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify(saleData)
+                }).then(res => res.json()).then(data => {
+                    if (data.status === 'success') { clearCurrentSale(); finalizeSaleModalInstance.hide(); } 
+                    else { alert(`Erro: ${data.message || 'Ocorreu um problema.'}`); }
+                }).catch(err => { console.error("Erro:", err); alert("Erro de comunicação."); });
+            }
 
-                // Se quiser adicionar atalhos para o novo modal de pagamento, a lógica precisaria ser implementada aqui.
-            });
+            function debounce(func, delay) {
+                let timeout;
+                return function(...args) {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(this, args), delay);
+                };
+            }
 
-            if (finalizeSaleButton) {
-                finalizeSaleButton.addEventListener('click', function() {
-                    console.log("CONSOLE: Botão 'Finalizar Venda' clicado.");
-                    if (saleItemsArray.length === 0) {
-                        alert("Não há itens na venda para finalizar.");
-                        return;
-                    }
-                    if (finalizeSaleModalInstance) {
-                        // Define o total da venda para o modal
-                        saleTotalForModal = currentSaleTotal; // currentSaleTotal é o total da sua venda principal
-                        if (modalSaleTotalSpan) modalSaleTotalSpan.textContent = saleTotalForModal.toFixed(2).replace('.', ',');
-                        
-                        clearPaymentModal(); // Limpa o estado do modal antes de mostrar
-                        
-                        // Sugestão: preencher automaticamente o valor do primeiro pagamento com o total restante
-                        if (paymentAmountInput) paymentAmountInput.value = saleTotalForModal.toFixed(2);
-
-                        // Define "Pix" (ID 1) como padrão no select
-                        if (paymentMethodSelect) {
-                            paymentMethodSelect.value = "1"; // ID do Pix
+            const searchCustomers = debounce(function(query) {
+                if (query.length < 2) { customerSearchResults.innerHTML = ''; return; }
+                fetch(`{% url 'customers:search_customers' %}?q=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        customerSearchResults.innerHTML = '';
+                        if (data.length === 0) {
+                            customerSearchResults.innerHTML = '<li class="list-group-item">Nenhum cliente encontrado.</li>';
+                            return;
                         }
-                        finalizeSaleModalInstance.show();
-                    }
-                });
-            }
-
-            if (addProductButton) addProductButton.addEventListener('click', handleAddProductClick);
-            if (barcodeInput) {
-                barcodeInput.addEventListener('keypress', function(event) {
-                    if (event.key === 'Enter' || event.keyCode === 13) {
-                        event.preventDefault();
-                        handleAddProductClick();
-                    }
-                });
-            }
-
-            // --- Lógica da Calculadora (Movida e Adaptada) ---
-            if (calculatorModalElement) {
-                const calculatorDisplay = calculatorModalElement.querySelector('#calculatorDisplay');
-                let calcDisplayValue = '0';
-                let calcFirstOperand = null;
-                let calcOperator = null;
-                let calcWaitingForSecondOperand = false;
-                let calcResultDisplayed = false; // Flag para saber se um resultado está no display
-
-
-                function calcUpdateDisplay() {
-                    if (calculatorDisplay) calculatorDisplay.textContent = calcDisplayValue;
-                }
-
-                function calcInputDigit(digit) {
-                    if (calcWaitingForSecondOperand === true) {
-                        calcDisplayValue = digit;
-                        calcWaitingForSecondOperand = false;
-                    } else if (calcResultDisplayed) { // Se um resultado foi exibido, limpa para um novo cálculo
-                        calcDisplayValue = digit;
-                        calcWaitingForSecondOperand = false;
-                    } else {
-                        calcDisplayValue = calcDisplayValue === '0' ? digit : calcDisplayValue + digit;
-                    }
-                    calcUpdateDisplay();
-                }
-
-                function calcInputDecimal(dot) {
-                    if (!calcDisplayValue.includes(dot)) {
-                         if (calcWaitingForSecondOperand || calcDisplayValue === 'Erro') { // Se esperando 2o operando ou erro, começa com "0."
-                            calcDisplayValue = '0' + dot;
-                            calcWaitingForSecondOperand = false;
-                            calcResultDisplayed = false;
-                         } else {
-                            calcDisplayValue += dot;
-                         }
-                    }
-                    calcUpdateDisplay();
-                }
-
-                function calcPerformCalculation(val1, val2, op) {
-                    const num1 = parseFloat(val1);
-                    const num2 = parseFloat(val2);
-                    if (isNaN(num1) || isNaN(num2)) return 'Erro'; // Garante que são números antes de calcular
-
-                    if (op === '+') return num1 + num2;
-                    if (op === '-') return num1 - num2;
-                    if (op === '*') return num1 * num2;
-                    if (op === '/') return num2 === 0 ? 'Erro' : num1 / num2; // Evita divisão por zero
-                    return num2; // Fallback caso nenhum operador corresponda
-                }
-
-                function calcHandleOperator(nextOperator) {
-                    const inputValue = parseFloat(calcDisplayValue);
-                    if (isNaN(inputValue) && calcDisplayValue !== 'Erro') return; // Ignora se não for número
-
-                    if (calcDisplayValue === 'Erro') {
-                        resetCalculatorLogic(); // Reseta a calculadora, display vai para '0'
-                        // A função continua, e o '0' atual do display será usado como inputValue
-                    }
-
-                    if (calcOperator && calcWaitingForSecondOperand) {
-                        // Usuário pressionou um operador, depois outro (ex: 5 + *)
-                        calcOperator = nextOperator; // Apenas atualiza o operador
-                        return;
-                    }
-
-                    if (calcOperator && calcWaitingForSecondOperand) {
-                        // Se um operador foi pressionado e está esperando o segundo operando,
-                        // apenas atualiza o operador. Ex: 5 + * (usuário mudou de ideia de + para *)
-                        calcOperator = nextOperator;
-                        return;
-                    }
-
-                    if (calcFirstOperand === null || calcDisplayValue === 'Erro') { // Se display era 'Erro', inputValue é 0 após reset
-                        calcFirstOperand = parseFloat(calcDisplayValue); // Usa o valor atual do display (pode ser 0 após erro)
-                    } else if (calcOperator) {
-                        const result = calcPerformCalculation(calcFirstOperand, inputValue, calcOperator);
-                        calcDisplayValue = (result === 'Erro') ? 'Erro' : `${parseFloat(result.toFixed(7))}`;
-                        calcFirstOperand = (result === 'Erro') ? null : result; // Se erro, reseta o primeiro operando
-                    }
-
-                    calcWaitingForSecondOperand = true;
-                    calcOperator = nextOperator;
-                    calcResultDisplayed = false; // Não é um resultado final ainda, estamos no meio de uma operação
-                    calcUpdateDisplay();
-                }
-
-                function resetCalculatorLogic() {
-                    calcDisplayValue = '0';
-                    calcFirstOperand = null;
-                    calcOperator = null;
-                    calcWaitingForSecondOperand = false;
-                    calcResultDisplayed = false; // Reseta a flag de resultado
-                    calcUpdateDisplay();
-                }
-
-                function calcHandleEquals() {
-                    if (calcDisplayValue === 'Erro' || calcFirstOperand === null || calcOperator === null || calcWaitingForSecondOperand) {
-                        // Nada para calcular, ou já calculou, ou está em estado de erro e esperando novo input
-                        if (calcDisplayValue === 'Erro') resetCalculatorLogic(); // Limpa se estiver em erro e '=' for pressionado
-                        return;
-                    }
-                    // O restante da lógica deve estar dentro da função
-                    const inputValue = parseFloat(calcDisplayValue);
-                    if (isNaN(inputValue)) return;
-
-                    const result = calcPerformCalculation(calcFirstOperand, inputValue, calcOperator);
-                    calcDisplayValue = (result === 'Erro') ? 'Erro' : `${parseFloat(result.toFixed(7))}`;
-                    calcFirstOperand = null;
-                    calcOperator = null;
-                    calcWaitingForSecondOperand = true; // Próximo dígito limpa a tela
-                    calcResultDisplayed = true; // Marca que um resultado foi exibido
-                    calcUpdateDisplay();
-                } // Fechamento correto da função calcHandleEquals
-
-                // --- Listener de Teclado para a Calculadora ---
-                // Esta função será adicionada/removida dinamicamente
-                function handleCalculatorKeydown(event) {
-                    const key = event.key;
-                    // console.log("Tecla da Calculadora pressionada:", key); // Para debug
-
-                    // Verifica se a tecla é um número (0-9)
-                    if (/\d/.test(key)) {
-                        calcInputDigit(key);
-                        event.preventDefault(); // Previne ação padrão (ex: scroll)
-                    }
-                    // Verifica se a tecla é um operador (+, -, *, /)
-                    else if (['+', '-', '*', '/'].includes(key)) {
-                        calcHandleOperator(key);
-                        event.preventDefault();
-                    }
-                    // Verifica se a tecla é o ponto decimal (ou vírgula, comum em teclados numéricos)
-                    else if (key === '.' || key === ',') {
-                        calcInputDecimal('.'); // Sempre usa ponto internamente
-                        event.preventDefault();
-                    }
-                    // Verifica se a tecla é Enter ou = (para =)
-                    else if (key === 'Enter' || key === '=') {
-                        calcHandleEquals();
-                        event.preventDefault();
-                    }
-                     // Verifica se a tecla é Backspace
-                    else if (key === 'Backspace') {
-                        calcHandleBackspace();
-                        event.preventDefault();
-                    }
-                     // Verifica se a tecla é Escape (para fechar o modal)
-                    else if (key === 'Escape') {
-                        // Bootstrap já fecha o modal com Escape por padrão,
-                        // mas podemos adicionar lógica extra se necessário.
-                        // resetCalculatorLogic(); // Opcional: limpar ao fechar
-                        // event.preventDefault(); // Cuidado: pode impedir o fechamento padrão
-                    }
-                    // Verifica se a tecla é 'c' ou 'C' (para limpar)
-                    else if (key === 'c' || key === 'C') {
-                         resetCalculatorLogic();
-                         event.preventDefault();
-                    }
-
-                } // Fim de handleCalculatorKeydown
-
-                function calcHandleBackspace() {
-                    if (calcDisplayValue === 'Erro') {
-                        resetCalculatorLogic();
-                        return;
-                    }
-                    if (calcDisplayValue.length === 1 || (calcDisplayValue.length === 2 && calcDisplayValue.startsWith('-'))) {
-                        calcDisplayValue = '0';
-                    } else {
-                        calcDisplayValue = calcDisplayValue.slice(0, -1);
-                    }
-                    calcResultDisplayed = false; // Não é mais um resultado final
-                    calcUpdateDisplay();
-                }
-
-                // --- Adicionar/Remover Listener de Teclado com Eventos do Modal ---
-                // Esta configuração deve estar FORA da função handleCalculatorKeydown
-                calculatorModalElement.addEventListener('shown.bs.modal', function () {
-                    // Quando o modal é mostrado, adiciona o listener de teclado
-                    console.log("Modal Calculadora mostrado. Adicionando listener de teclado.");
-                    calculatorKeydownListener = handleCalculatorKeydown; // Armazena a referência da função
-                    document.addEventListener('keydown', calculatorKeydownListener);
-                });
-
-                calculatorModalElement.addEventListener('hidden.bs.modal', function () {
-                    // Quando o modal é escondido, remove o listener de teclado
-                    console.log("Modal Calculadora escondido. Removendo listener de teclado.");
-                    if (calculatorKeydownListener) {
-                        document.removeEventListener('keydown', calculatorKeydownListener);
-                        calculatorKeydownListener = null; // Limpa a referência
-                    }
-                });
-
-                // Event Listener para Cliques nos Botões da Calculadora
-                const calcButtons = calculatorModalElement.querySelectorAll('.calc-btn');
-                calcButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const action = this.dataset.action;
-                        const value = this.dataset.value;
-
-                        if (action === 'operator') calcHandleOperator(value);
-                        else if (action === 'decimal') calcInputDecimal(value);
-                        else if (action === 'clear') resetCalculatorLogic();
-                        else if (action === 'calculate') calcHandleEquals();
-                        else if (value) calcInputDigit(value);
+                        data.forEach(customer => {
+                            const item = document.createElement('a');
+                            item.href = '#';
+                            item.className = 'list-group-item list-group-item-action';
+                            item.textContent = customer.name;
+                            item.dataset.customerId = customer.id;
+                            customerSearchResults.appendChild(item);
+                        });
                     });
-                });
-                
-                // Inicializa o display da calculadora no modal
-                calcUpdateDisplay(); 
-            }
+            }, 300);
 
-            // Função auxiliar para pegar o CSRF token dos cookies
-            // (Certifique-se que esta função está presente e correta)
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
+            // --- Listeners ---
+            addProductButton.addEventListener('click', () => {
+                const code = barcodeInput.value.trim();
+                if (!code) return;
+                const product = productsData.find(p => p.barcode === code || p.internal_code === code);
+                if (product) { addProductToSale(product); } 
+                else { alert(`Produto com código "${code}" não encontrado.`); barcodeInput.select(); }
+            });
+            barcodeInput.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); addProductButton.click(); } });
+            confirmQuantityButton.addEventListener('click', () => {
+                const val = parseFloat(quantityInput.value.replace(',', '.'));
+                if (!isNaN(val) && val > 0) { pendingQuantity = val; currentPendingQuantitySpan.textContent = val; bootstrap.Modal.getInstance(quantityModalElement).hide(); barcodeInput.focus(); } 
+                else { alert("Insira uma quantidade válida."); }
+            });
+            saleItemsList.addEventListener('click', e => {
+                const btn = e.target.closest('.remove-sale-item-btn');
+                if (btn) { removeSaleItem(parseInt(btn.dataset.removeId, 10)); }
+            });
+            finalizeSaleButton.addEventListener('click', () => {
+                if (saleItemsArray.length === 0) { alert("Não há itens na venda."); return; }
+                saleTotalForModal = currentSaleTotal;
+                modalSaleTotalSpan.textContent = saleTotalForModal.toFixed(2).replace('.', ',');
+                paymentAmountInput.value = saleTotalForModal.toFixed(2).replace('.', ',');
+                finalizeSaleModalInstance.show();
+            });
+            finalizeSaleModalElement.addEventListener('hidden.bs.modal', () => {
+                currentPaymentsArray = []; renderAddedPayments(); selectedPaymentMethodIdInput.value = ''; styleSelectedPaymentButton(null);
+                customerSelectionArea.style.display = 'none'; customerSearchInput.value = ''; customerSearchResults.innerHTML = ''; selectedCustomerIdInput.value = ''; selectedCustomerNameSpan.textContent = 'Nenhum';
+                barcodeInput.focus();
+            });
+            paymentMethodButtons.forEach((btn, index) => {
+                if (index < 9) { btn.innerHTML += ` <span class="badge bg-secondary">${index + 1}</span>`; }
+                btn.addEventListener('click', () => {
+                    selectedPaymentMethodIdInput.value = btn.dataset.methodId;
+                    styleSelectedPaymentButton(btn);
+                    customerSelectionArea.style.display = btn.dataset.requiresCustomer === 'true' ? 'block' : 'none';
+                    if (btn.dataset.requiresCustomer === 'true') { customerSearchInput.focus(); }
+                    else { paymentAmountInput.focus(); paymentAmountInput.select(); }
+                });
+            });
+            addPaymentButton.addEventListener('click', handleAddPayment);
+            confirmSaleWithPaymentsButton.addEventListener('click', finalizeSale);
+            addedPaymentsList.addEventListener('click', e => {
+                const btn = e.target.closest('.remove-added-payment-btn');
+                if (btn) { currentPaymentsArray.splice(parseInt(btn.dataset.index, 10), 1); renderAddedPayments(); }
+            });
+            customerSearchInput.addEventListener('keyup', e => searchCustomers(e.target.value));
+            customerSearchResults.addEventListener('click', e => {
+                e.preventDefault();
+                if (e.target.classList.contains('list-group-item-action')) {
+                    selectedCustomerIdInput.value = e.target.dataset.customerId;
+                    selectedCustomerNameSpan.textContent = e.target.textContent;
+                    customerSearchResults.innerHTML = '';
+                    paymentAmountInput.focus();
                 }
-                return cookieValue;
-            }
+            });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'F9') { e.preventDefault(); finalizeSaleButton.click(); }
+                if (finalizeSaleModalInstance._isShown) {
+                    const key = parseInt(e.key, 10);
+                    if (!isNaN(key) && key > 0 && key <= paymentMethodButtons.length) { e.preventDefault(); paymentMethodButtons[key - 1].click(); }
+                }
+            });
+            function getCookie(name) { let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)'); return v ? v[2] : null; }
+            renderSaleItems();
+            barcodeInput.focus();
         });
     </script>
 </body>

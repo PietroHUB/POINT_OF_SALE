@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'customers.apps.CustomersConfig',
     'sales.apps.SalesConfig',
     'caixa.apps.CaixaConfig',
     'products.apps.ProductsConfig',
@@ -160,3 +161,8 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Configurações de Localização para o Brasil
+USE_L10N = True
+USE_THOUSAND_SEPARATOR = True
+DECIMAL_SEPARATOR = ','

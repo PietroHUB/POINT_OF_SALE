@@ -1,17 +1,22 @@
 from django.db import models
-from products.models import Product # Importar o modelo Product do seu app products
+from products.models import Product
+from caixa.models import PaymentMethod
+from customers.models import Customer # Importa o novo modelo Customer
 from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
-
 import logging
+
 logger = logging.getLogger(__name__)
 
-
-# Supondo que PaymentMethod está em caixa.models
-# Se não estiver, você precisará ajustar este import ou criar o modelo.
-from caixa.models import PaymentMethod
-
 class Sale(models.Model):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT, # Evita excluir um cliente que tenha vendas associadas
+        verbose_name=_("Cliente"),
+        null=True, # Permite que a venda não tenha cliente (vendas à vista)
+        blank=True,
+        related_name='sales'
+    )
     # O campo payment_method foi removido daqui.
     # O total_amount continua sendo o valor total dos produtos da venda.
     total_amount = models.DecimalField(
@@ -19,6 +24,13 @@ class Sale(models.Model):
         max_digits=10,
         decimal_places=2,
         default=Decimal('0.00')
+    )
+    change_amount = models.DecimalField(
+        _("Valor do Troco"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text=_("Valor do troco devolvido ao cliente.")
     )
     created_at = models.DateTimeField(_("Data da Venda"), auto_now_add=True)
     # Adicione quaisquer outros campos que seu modelo Sale possa ter.
