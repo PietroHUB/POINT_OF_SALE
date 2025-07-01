@@ -122,7 +122,29 @@ def finalize_sale(request):
 
             logger.info("Venda #%s finalizada com sucesso. Total: %s, Troco: %s", sale.id, sale.total_amount, sale.change_amount)
 
-        return JsonResponse({'status': 'success', 'sale_id': sale.id})
+        # --- 7. Prepara os dados de retorno para o cupom ---
+            sale_details = {
+                'id': sale.id,
+                'date': sale.created_at.strftime('%d/%m/%Y %H:%M:%S'),
+                'customer': customer_instance.name if customer_instance else 'Consumidor Padrão',
+                'items': [{
+                    'name': item.product.name,
+                    'quantity': f"{item.quantity:.2f}".replace('.', ','),
+                    'unit_price': f"{item.unit_price:.2f}".replace('.', ','),
+                    'subtotal': f"{item.subtotal:.2f}".replace('.', ',')
+                } for item in sale.items.all()],
+                'payments': [{
+                    'method': p.payment_method.description,
+                    'amount': f"{p.amount:.2f}".replace('.', ',')
+                } for p in sale.payments.all()],
+                'total_amount': f"{sale.total_amount:.2f}".replace('.', ','),
+                'total_paid': f"{total_paid:.2f}".replace('.', ','),
+                'change_amount': f"{sale.change_amount:.2f}".replace('.', ',')
+            }
+
+            logger.info("Venda #%s finalizada com sucesso. Total: %s, Troco: %s", sale.id, sale.total_amount, sale.change_amount)
+
+        return JsonResponse({'status': 'success', 'sale_id': sale.id, 'sale_details': sale_details})
 
     except SaleValidationError as e:
         logger.warning("Erro de validação da venda: %s", e.message)

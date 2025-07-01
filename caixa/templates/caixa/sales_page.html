@@ -81,16 +81,14 @@
                         <label for="barcodeScanInput" class="form-label">Código de Barras / Código Interno:</label>
                         <input type="text" class="form-control form-control-lg" id="barcodeScanInput" placeholder="Leia o código de barras ou digite o código" autofocus>
                     </div>
-                    <!-- Botão para Abrir Calculadora -->
-                    <div class="d-grid gap-2 mb-3">
-                        <!-- Alterado para ser um botão que abre um modal -->
-                        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#calculatorModal">
+                    <!-- Botões de Ação -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-start mb-3">
+                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#calculatorModal">
                             Abrir Calculadora de Troco (F3)
                         </button>
-                    </div>
-                    <!-- Botão de Quantidade -->
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <button class="btn btn-secondary me-md-2" type="button" data-bs-toggle="modal" data-bs-target="#quantityModal">Quantidade (F4) (<span id="currentPendingQuantity">1</span>)</button>
+                        <button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#quantityModal">
+                            Quantidade (F4) (<span id="currentPendingQuantity">1</span>)
+                        </button>
                         <!-- O botão "Adicionar Produto" foi removido da interface para agilizar o fluxo. A funcionalidade continua via tecla Enter. -->
                         <button class="btn btn-primary flex-grow-1" type="button" id="addProductByCode" style="display: none;">Adicionar Produto</button>
                     </div>
@@ -199,7 +197,10 @@
                                 <label for="paymentAmountInput" class="form-label">Valor a Pagar (R$):</label>
                                 <input type="text" inputmode="decimal" class="form-control" id="paymentAmountInput" placeholder="0,00">
                             </div>
-                            <button type="button" class="btn btn-primary w-100" id="addPaymentButton">Adicionar Pagamento (F9)</button>
+                            <div class="d-grid gap-2 d-md-flex">
+                                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#calculatorModal">Calculadora (F3)</button>
+                                <button type="button" class="btn btn-primary flex-grow-1" id="addPaymentButton">Adicionar Pagamento (F9)</button>
+                            </div>
                             <hr>
                             <div class="d-flex justify-content-between mt-2">
                                 <strong>Total Pago:</strong>
@@ -422,19 +423,98 @@
 
             function finalizeSale() {
                 const saleData = {
-                    items: saleItemsArray.map(item => ({ productId: item.productId, quantity: item.quantity.toString(), price: item.price.toFixed(2) })),
-                    payments: currentPaymentsArray,
+                    items: saleItemsArray.map(item => ({
+                        productId: item.productId,
+                        quantity: item.quantity.toString(),
+                        price: item.price.toFixed(2)
+                    })),
+                    payments: currentPaymentsArray.map(p => ({
+                        payment_method_id: p.payment_method_id,
+                        amount: p.amount
+                    })),
                     customer_id: selectedCustomerIdInput.value || null,
-                    point_of_sale_id: document.getElementById('pointOfSaleId').value // Adiciona o ID do POS
+                    point_of_sale_id: document.getElementById('pointOfSaleId').value
                 };
                 fetch("{% url 'sales:finalize_sale' %}", {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
                     body: JSON.stringify(saleData)
                 }).then(res => res.json()).then(data => {
-                    if (data.status === 'success') { clearCurrentSale(); finalizeSaleModalInstance.hide(); } 
-                    else { alert(`Erro: ${data.message || 'Ocorreu um problema.'}`); }
-                }).catch(err => { console.error("Erro:", err); alert("Erro de comunicação."); });
+                    if (data.status === 'success') {
+                        finalizeSaleModalInstance.hide();
+                        
+                        if (confirm("Venda finalizada com sucesso!\n\nDeseja imprimir o cupom?")) {
+                            printReceipt(data.sale_details);
+                        }
+
+                        clearCurrentSale();
+                    } else {
+                        alert(`Erro: ${data.message || 'Ocorreu um problema.'}`);
+                    }
+                }).catch(err => {
+                    console.error("Erro:", err);
+                    alert("Erro de comunicação.");
+                });
+            }
+
+            function printReceipt(details) {
+                const receiptWindow = window.open('', 'PRINT', 'height=600,width=800');
+                
+                receiptWindow.document.write('<html><head><title>Cupom</title>');
+                receiptWindow.document.write(`
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px; width: 80mm; }
+                        .receipt { width: 100%; }
+                        .center { text-align: center; }
+                        .line { border-top: 1px dashed #000; margin: 5px 0; }
+                        .item-row, .total-row { display: flex; justify-content: space-between; }
+                        .item-details { margin-left: 10px; }
+                        @media print {
+                            body { margin: 0; padding: 0; }
+                            .no-print { display: none; }
+                        }
+                    </style>
+                `);
+                receiptWindow.document.write('</head><body>');
+                
+                let receiptHtml = '<div class="receipt">';
+                receiptHtml += '<div class="center"><strong>NOME DA SUA LOJA</strong><br>CUPOM NÃO FISCAL</div>';
+                receiptHtml += '<div class="line"></div>';
+                receiptHtml += `<div>Data: ${details.date}</div>`;
+                receiptHtml += `<div>Venda #: ${details.id}</div>`;
+                receiptHtml += `<div>Cliente: ${details.customer}</div>`;
+                receiptHtml += '<div class="line"></div>';
+                receiptHtml += '<strong>ITENS:</strong><br>';
+                
+                details.items.forEach(item => {
+                    receiptHtml += `<div>${item.name}</div>`;
+                    receiptHtml += `<div class="item-details">${item.quantity} x R$ ${item.unit_price} = R$ ${item.subtotal}</div>`;
+                });
+
+                receiptHtml += '<div class="line"></div>';
+                receiptHtml += `<div class="total-row"><strong>TOTAL:</strong><strong>R$ ${details.total_amount}</strong></div>`;
+                receiptHtml += '<div class="line"></div>';
+                receiptHtml += '<strong>PAGAMENTOS:</strong><br>';
+                
+                details.payments.forEach(p => {
+                    receiptHtml += `<div class="total-row"><span>${p.method}</span><span>R$ ${p.amount}</span></div>`;
+                });
+
+                receiptHtml += `<div class="total-row"><strong>Total Pago:</strong><strong>R$ ${details.total_paid}</strong></div>`;
+                receiptHtml += `<div class="total-row"><strong>Troco:</strong><strong>R$ ${details.change_amount}</strong></div>`;
+                receiptHtml += '<div class="line"></div>';
+                receiptHtml += '<div class="center">Obrigado!</div>';
+                receiptHtml += '</div>';
+
+                receiptWindow.document.write(receiptHtml);
+                receiptWindow.document.write('<button class="no-print" onclick="window.print(); window.close();">Imprimir</button>');
+                receiptWindow.document.write('</body></html>');
+                receiptWindow.document.close();
+                receiptWindow.focus();
+                setTimeout(() => { receiptWindow.print(); receiptWindow.close(); }, 250);
             }
 
             function debounce(func, delay) {
@@ -667,7 +747,12 @@
 
                 modal.addEventListener('shown.bs.modal', () => {
                     modal.focus();
-                    resetCalculator();
+                    resetCalculator(); // Sempre zera a calculadora ao abrir
+                });
+
+                // NOVO: Devolve o foco ao input principal quando a calculadora é fechada
+                modal.addEventListener('hidden.bs.modal', () => {
+                    barcodeInput.focus();
                 });
             })();
             saleItemsList.addEventListener('click', e => {
@@ -738,12 +823,14 @@
                 }
                 if (e.key === 'F4') {
                     e.preventDefault();
+                    // F4 sempre abre o modal de quantidade
                     const quantityModal = bootstrap.Modal.getInstance(quantityModalElement) || new bootstrap.Modal(quantityModalElement);
                     quantityModal.show();
                     return;
                 }
                 if (e.key === 'F3') {
                     e.preventDefault();
+                    // F3 sempre abre a calculadora
                     const calculatorModal = bootstrap.Modal.getInstance(calculatorModalElement) || new bootstrap.Modal(calculatorModalElement);
                     calculatorModal.show();
                     return;
