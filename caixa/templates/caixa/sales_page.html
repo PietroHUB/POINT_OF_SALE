@@ -62,7 +62,7 @@
 </head>
 <body>
     <div class="app-version">
-        plima<br>v1.1
+        plima<br>v1.2
     </div>
     <div class="container main-container">
         <header class="text-center mb-4">
@@ -85,12 +85,12 @@
                     <div class="d-grid gap-2 mb-3">
                         <!-- Alterado para ser um botão que abre um modal -->
                         <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#calculatorModal">
-                            Abrir Calculadora de Troco
+                            Abrir Calculadora de Troco (F3)
                         </button>
                     </div>
                     <!-- Botão de Quantidade -->
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <button class="btn btn-secondary me-md-2" type="button" data-bs-toggle="modal" data-bs-target="#quantityModal">Quantidade (<span id="currentPendingQuantity">1</span>)</button>
+                        <button class="btn btn-secondary me-md-2" type="button" data-bs-toggle="modal" data-bs-target="#quantityModal">Quantidade (F4) (<span id="currentPendingQuantity">1</span>)</button>
                         <!-- O botão "Adicionar Produto" foi removido da interface para agilizar o fluxo. A funcionalidade continua via tecla Enter. -->
                         <button class="btn btn-primary flex-grow-1" type="button" id="addProductByCode" style="display: none;">Adicionar Produto</button>
                     </div>
@@ -142,7 +142,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="quantityInput" class="form-label">Quantidade:</label>
-                        <input type="number" class="form-control form-control-lg" id="quantityInput" value="1" min="1">
+                        <input type="text" inputmode="decimal" class="form-control form-control-lg" id="quantityInput" value="1">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -197,9 +197,9 @@
 
                             <div class="mb-3">
                                 <label for="paymentAmountInput" class="form-label">Valor a Pagar (R$):</label>
-                                <input type="number" class="form-control" id="paymentAmountInput" placeholder="0.00" step="0.01">
+                                <input type="text" inputmode="decimal" class="form-control" id="paymentAmountInput" placeholder="0,00">
                             </div>
-                            <button type="button" class="btn btn-primary w-100" id="addPaymentButton">Adicionar Pagamento</button>
+                            <button type="button" class="btn btn-primary w-100" id="addPaymentButton">Adicionar Pagamento (F9)</button>
                             <hr>
                             <div class="d-flex justify-content-between mt-2">
                                 <strong>Total Pago:</strong>
@@ -223,7 +223,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelSaleFinalizationButton">Cancelar</button>
-                    <button type="button" class="btn btn-success" id="confirmSaleWithPaymentsButton" disabled>Confirmar Venda</button>
+                    <button type="button" class="btn btn-success" id="confirmSaleWithPaymentsButton" disabled>Confirmar Venda (F10)</button>
                 </div>
             </div>
         </div>
@@ -285,6 +285,7 @@
             const quantityInput = document.getElementById('quantityInput');
             const confirmQuantityButton = document.getElementById('confirmQuantityButton');
             const currentPendingQuantitySpan = document.getElementById('currentPendingQuantity');
+            const quantityModalElement = document.getElementById('quantityModal'); // Adicionado para o atalho F4
             const finalizeSaleModalElement = document.getElementById('finalizeSaleModal');
             const finalizeSaleModalInstance = finalizeSaleModalElement ? new bootstrap.Modal(finalizeSaleModalElement) : null;
             const modalSaleTotalSpan = document.getElementById('modalSaleTotal');
@@ -304,6 +305,9 @@
             const customerSearchResults = document.getElementById('customerSearchResults');
             const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
             const selectedCustomerNameSpan = document.getElementById('selectedCustomerName');
+
+            // --- Seletores da Calculadora ---
+            const calculatorModalElement = document.getElementById('calculatorModal');
 
             // --- Dados e Estado ---
             const productsData = [ {% for product in products %}{ id: "{{ product.id }}", name: "{{ product.name|escapejs }}", price: "{{ product.price }}", internal_code: "{{ product.internal_code|escapejs }}", barcode: "{{ product.barcode|escapejs }}" }, {% endfor %} ];
@@ -377,8 +381,17 @@
                 selectedPaymentMethodIdInput.value = '';
                 styleSelectedPaymentButton(null);
                 const totalPaid = currentPaymentsArray.reduce((acc, p) => acc + parseFloat(p.amount), 0);
-                if (totalPaid >= saleTotalForModal) { confirmSaleWithPaymentsButton.focus(); paymentAmountInput.value = ''; } 
-                else { paymentAmountInput.value = (saleTotalForModal - totalPaid).toFixed(2).replace('.', ','); paymentAmountInput.focus(); }
+                if (totalPaid >= saleTotalForModal) { 
+                    confirmSaleWithPaymentsButton.focus(); 
+                    paymentAmountInput.value = ''; 
+                } else { 
+                    paymentAmountInput.value = (saleTotalForModal - totalPaid).toFixed(2).replace('.', ','); 
+                    // NOVO: Foca no primeiro botão de pagamento para adicionar o valor restante
+                    const firstPaymentButton = paymentMethodButtons[0];
+                    if (firstPaymentButton) {
+                        firstPaymentButton.focus();
+                    }
+                }
             }
 
             function renderAddedPayments() {
@@ -463,10 +476,200 @@
             });
             barcodeInput.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); addProductButton.click(); } });
             confirmQuantityButton.addEventListener('click', () => {
+                confirmQuantityButton.addEventListener('click', () => {
                 const val = parseFloat(quantityInput.value.replace(',', '.'));
-                if (!isNaN(val) && val > 0) { pendingQuantity = val; currentPendingQuantitySpan.textContent = val; bootstrap.Modal.getInstance(quantityModalElement).hide(); barcodeInput.focus(); } 
-                else { alert("Insira uma quantidade válida."); }
+                if (!isNaN(val) && val > 0) { 
+                    pendingQuantity = val; 
+                    currentPendingQuantitySpan.textContent = String(val).replace('.', ','); // Mostra com vírgula na tela principal
+                    bootstrap.Modal.getInstance(quantityModalElement).hide(); 
+                    barcodeInput.focus(); 
+                } 
+                else { 
+                    alert("Insira uma quantidade válida."); 
+                }
             });
+            });
+
+            // Foca no input quando o modal de quantidade é aberto
+            quantityModalElement.addEventListener('shown.bs.modal', () => {
+                quantityInput.focus();
+                quantityInput.select(); // Opcional: seleciona o texto atual para fácil substituição
+            });
+
+            // Listener unificado para o input de quantidade
+            quantityInput.addEventListener('keydown', e => {
+                // Permite teclas de controle como Backspace, Tab, setas, etc.
+                if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Escape'].includes(e.key)) {
+                    return;
+                }
+                
+                // Lógica do Enter
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const valueStr = quantityInput.value.replace(',', '.');
+                    const val = parseFloat(valueStr);
+
+                    if (!isNaN(val) && val > 0) {
+                        pendingQuantity = val;
+                        currentPendingQuantitySpan.textContent = String(val).replace('.', ',');
+                        bootstrap.Modal.getInstance(quantityModalElement).hide();
+                        // Adiciona o produto que já está no campo de código de barras
+                        addProductButton.click(); 
+                    } else {
+                        alert("Insira uma quantidade válida.");
+                    }
+                    return; // Encerra a execução para o Enter
+                }
+
+                // Validação da tecla pressionada
+                const currentValue = quantityInput.value;
+                const key = e.key;
+
+                // Permite apenas números
+                if (!/[0-9]/.test(key) && key !== ',') {
+                    e.preventDefault();
+                    return;
+                }
+                // Permite apenas uma vírgula
+                if (key === ',' && currentValue.includes(',')) {
+                    e.preventDefault();
+                }
+            });
+
+            // NOVO: Devolve o foco ao input principal quando o modal de quantidade é fechado
+            quantityModalElement.addEventListener('hidden.bs.modal', () => {
+                barcodeInput.focus();
+            });
+
+            // --- Listeners do Modal da Calculadora ---
+            (function() {
+                const modal = document.getElementById('calculatorModal');
+                if (!modal) return;
+
+                const display = modal.querySelector('#calculatorDisplay');
+                let currentInput = '0';
+                let firstOperand = null;
+                let operator = null;
+
+                function formatResult(num) {
+                    if (isNaN(num)) return 'Erro';
+                    // Arredonda para 12 dígitos significativos para evitar erros de ponto flutuante
+                    // e depois converte para Number para remover zeros à direita desnecessários.
+                    return String(Number(num.toPrecision(12)));
+                }
+
+                function updateDisplay() {
+                    const isOperator = ['+', '-', '*', '/'].includes(currentInput);
+                    if (isOperator) {
+                        display.textContent = currentInput;
+                    } else {
+                        display.textContent = currentInput.replace('.', ',');
+                    }
+                }
+
+                function resetCalculator() {
+                    currentInput = '0';
+                    firstOperand = null;
+                    operator = null;
+                    updateDisplay();
+                }
+
+                function inputDigit(digit) {
+                    const isOperator = ['+', '-', '*', '/'].includes(currentInput);
+                    if (isOperator || currentInput === '0') {
+                        currentInput = digit;
+                    } else {
+                        if (currentInput.length < 15) {
+                            currentInput += digit;
+                        }
+                    }
+                    updateDisplay();
+                }
+
+                function inputDecimal() {
+                    const isOperator = ['+', '-', '*', '/'].includes(currentInput);
+                    if (isOperator) {
+                        currentInput = '0.';
+                    } else if (!currentInput.includes('.')) {
+                        currentInput += '.';
+                    }
+                    updateDisplay();
+                }
+
+                function handleOperator(nextOperator) {
+                    if (firstOperand !== null && ['+', '-', '*', '/'].includes(currentInput)) {
+                        operator = nextOperator;
+                        currentInput = nextOperator;
+                        updateDisplay();
+                        return;
+                    }
+                    
+                    const inputValue = parseFloat(currentInput.replace(',', '.'));
+
+                    if (operator && firstOperand !== null) {
+                        const result = calculate(firstOperand, inputValue, operator);
+                        firstOperand = parseFloat(formatResult(result));
+                    } else {
+                        firstOperand = inputValue;
+                    }
+
+                    operator = nextOperator;
+                    currentInput = nextOperator;
+                    updateDisplay();
+                }
+
+                function calculate(a, b, op) {
+                    switch (op) {
+                        case '+': return a + b;
+                        case '-': return a - b;
+                        case '*': return a * b;
+                        case '/': return b === 0 ? NaN : a / b; // Retorna NaN para erro
+                        default: return b;
+                    }
+                }
+                
+                function handleEquals() {
+                    if (operator === null || firstOperand === null || ['+', '-', '*', '/'].includes(currentInput)) {
+                        return;
+                    }
+                    const secondOperand = parseFloat(currentInput.replace(',', '.'));
+                    const result = calculate(firstOperand, secondOperand, operator);
+                    
+                    currentInput = formatResult(result);
+
+                    operator = null;
+                    firstOperand = null;
+                    updateDisplay();
+                }
+
+                // Listeners de clique
+                modal.addEventListener('click', e => {
+                    const button = e.target.closest('.calc-btn');
+                    if (!button) return;
+                    const { action, value } = button.dataset;
+
+                    if (value >= '0' && value <= '9') inputDigit(value);
+                    else if (action === 'decimal') inputDecimal();
+                    else if (action === 'operator') handleOperator(value);
+                    else if (action === 'calculate') handleEquals();
+                    else if (action === 'clear') resetCalculator();
+                });
+
+                // Listeners de teclado
+                modal.addEventListener('keydown', e => {
+                    if (e.key >= '0' && e.key <= '9') { e.preventDefault(); inputDigit(e.key); } 
+                    else if (e.key === '.' || e.key === ',') { e.preventDefault(); inputDecimal(); } 
+                    else if (['+', '-', '*', '/'].includes(e.key)) { e.preventDefault(); handleOperator(e.key); } 
+                    else if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); handleEquals(); } 
+                    else if (e.key.toLowerCase() === 'c' || e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); resetCalculator(); } 
+                    else if (e.key === 'Escape') { bootstrap.Modal.getInstance(modal).hide(); }
+                });
+
+                modal.addEventListener('shown.bs.modal', () => {
+                    modal.focus();
+                    resetCalculator();
+                });
+            })();
             saleItemsList.addEventListener('click', e => {
                 const btn = e.target.closest('.remove-sale-item-btn');
                 if (btn) { removeSaleItem(parseInt(btn.dataset.removeId, 10)); }
@@ -494,6 +697,18 @@
                 });
             });
             addPaymentButton.addEventListener('click', handleAddPayment);
+
+            // NOVO: Valida a entrada de valor para permitir apenas números e vírgula
+            paymentAmountInput.addEventListener('input', e => {
+                let value = e.target.value;
+                value = value.replace(/[^0-9,]/g, '');
+                const parts = value.split(',');
+                if (parts.length > 2) {
+                    value = parts[0] + ',' + parts.slice(1).join('');
+                }
+                e.target.value = value;
+            });
+
             confirmSaleWithPaymentsButton.addEventListener('click', finalizeSale);
             addedPaymentsList.addEventListener('click', e => {
                 const btn = e.target.closest('.remove-added-payment-btn');
@@ -509,30 +724,75 @@
                     paymentAmountInput.focus();
                 }
             });
+
+            // Listener de atalhos (F3, F4, F9 e numéricos no modal)
             document.addEventListener('keydown', e => {
-                document.addEventListener('keydown', e => {
-                // Atalho para finalizar venda
-                if (e.key === 'F9') {
+                const activeElement = document.activeElement;
+                const isFinalizeModalOpen = finalizeSaleModalInstance && finalizeSaleModalInstance._isShown;
+                
+                // Atalhos globais que devem funcionar mesmo com inputs focados
+                if (e.key === 'F9' && !isFinalizeModalOpen) {
                     e.preventDefault();
                     finalizeSaleButton.click();
+                    return;
+                }
+                if (e.key === 'F4') {
+                    e.preventDefault();
+                    const quantityModal = bootstrap.Modal.getInstance(quantityModalElement) || new bootstrap.Modal(quantityModalElement);
+                    quantityModal.show();
+                    return;
+                }
+                if (e.key === 'F3') {
+                    e.preventDefault();
+                    const calculatorModal = bootstrap.Modal.getInstance(calculatorModalElement) || new bootstrap.Modal(calculatorModalElement);
+                    calculatorModal.show();
+                    return;
                 }
 
-                // Atalhos para formas de pagamento (somente quando o modal está aberto)
-                if (finalizeSaleModalInstance._isShown) {
-                    // CORREÇÃO: Ignora os atalhos numéricos se o foco já estiver em um campo de input.
-                    const targetIsInput = e.target.tagName === 'INPUT';
-                    if (targetIsInput) {
-                        return; // Permite a digitação normal no campo.
+                // Lógica específica para quando o modal de finalização está aberto
+                if (isFinalizeModalOpen) {
+                    // Atalhos de Teclas de Função (F) têm prioridade
+                    if (e.key === 'F10') {
+                        e.preventDefault();
+                        if (!confirmSaleWithPaymentsButton.disabled) {
+                            confirmSaleWithPaymentsButton.click();
+                        }
+                        return;
+                    }
+                    if (e.key === 'F9') {
+                        e.preventDefault();
+                        addPaymentButton.click();
+                        return; // Encerra aqui para não conflitar com outras lógicas
                     }
 
+                    // Lógica para o campo de input de valor
+                    if (activeElement.id === 'paymentAmountInput') {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addPaymentButton.click();
+                        }
+                        // Permite a digitação normal e encerra
+                        return;
+                    }
+                    
+                    // Lógica para o campo de busca de cliente
+                    if (activeElement.id === 'customerSearchInput') {
+                        // Permite a digitação normal e encerra
+                        return;
+                    }
+
+                    // Se o foco não estiver em um input, processa atalhos numéricos
                     const key = parseInt(e.key, 10);
-                    if (!isNaN(key) && key > 0 && key <= paymentMethodButtons.length) {
-                        e.preventDefault(); // Previne a ação padrão apenas se for um atalho válido.
-                        paymentMethodButtons[key - 1].click();
+                    if (!isNaN(key) && key > 0 && key <= 9) {
+                        e.preventDefault();
+                        const paymentButton = paymentMethodButtons[key - 1];
+                        if (paymentButton) {
+                            paymentButton.click();
+                        }
                     }
                 }
             });
-            });
+
             function getCookie(name) { let v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)'); return v ? v[2] : null; }
             renderSaleItems();
             barcodeInput.focus();

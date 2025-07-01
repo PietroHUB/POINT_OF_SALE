@@ -5,7 +5,7 @@ from django.views.decorators.http import require_POST
 import json 
 from .models import Sale, SaleItem, SalePayment
 from products.models import Product
-from caixa.models import PaymentMethod
+from caixa.models import PaymentMethod, PointOfSale
 from customers.models import Customer # Adicionado
 from decimal import Decimal, InvalidOperation
 from django.db import transaction 
