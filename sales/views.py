@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse 
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST 
@@ -13,7 +13,7 @@ import logging
 
 logger = logging.getLogger(__name__) 
 
-"""
+r"""
 
 novo server:
 
@@ -138,31 +138,8 @@ def finalize_sale(request):
 
             logger.info("Venda #%s finalizada com sucesso. Total Pago: %s, Troco: %s", sale.id, total_paid, sale.change_amount)
 
-            sale_items_for_receipt = sale.items.all()
-            sale_payments_for_receipt = sale.payments.all()
-
-            sale_details = {
-                'id': sale.id,
-                'date': sale.created_at.strftime('%d/%m/%Y %H:%M:%S'),
-                'customer': customer_instance.name if customer_instance else 'Consumidor Padrão',
-                'items': [{
-                    'name': item.product.name,
-                    'quantity': f"{item.quantity:.2f}".replace('.', ','),
-                    'unit_price': f"{item.unit_price:.2f}".replace('.', ','),
-                    'subtotal': f"{item.subtotal:.2f}".replace('.', ',')
-                } for item in sale_items_for_receipt],
-                'payments': [{
-                    'method': p.payment_method.description,
-                    'amount': f"{p.amount:.2f}".replace('.', ',')
-                } for p in sale_payments_for_receipt],
-                'total_amount': f"{sale.total_amount:.2f}".replace('.', ','),
-                'discount': f"{sale.discount:.2f}".replace('.', ','),
-                'final_amount': f"{sale.final_amount:.2f}".replace('.', ','),
-                'total_paid': f"{total_paid:.2f}".replace('.', ','),
-                'change_amount': f"{sale.change_amount:.2f}".replace('.', ',')
-            }
-
-        return JsonResponse({'status': 'success', 'sale_id': sale.id, 'sale_details': sale_details})
+        # Agora, retornamos apenas o ID da venda. O frontend construirá a URL do cupom.
+        return JsonResponse({'status': 'success', 'sale_id': sale.id})
 
     except SaleValidationError as e:
         logger.warning("Erro de validação da venda: %s", e.message)
@@ -173,3 +150,18 @@ def finalize_sale(request):
     except Exception as e:
         logger.exception("Erro interno inesperado ao finalizar venda:")
         return JsonResponse({'status': 'error', 'message': f'Erro interno: {str(e)}'}, status=500)
+
+def sale_receipt_view(request, sale_id):
+    """
+    Renderiza uma página HTML simples contendo apenas o cupom para impressão.
+    """
+    sale = get_object_or_404(Sale.objects.prefetch_related('items__product', 'payments__payment_method'), id=sale_id)
+    
+    # Calcula o total pago para passar para o template
+    total_paid = sum(p.amount for p in sale.payments.all())
+
+    context = {
+        'sale': sale,
+        'total_paid': total_paid
+    }
+    return render(request, 'caixa/receipt_template.html', context)

@@ -493,7 +493,7 @@
                     if (data.status === 'success') {
                         finalizeSaleModalInstance.hide();
                         if (confirm("Venda finalizada com sucesso!\n\nDeseja imprimir o cupom?")) {
-                            printReceipt(data.sale_details);
+                            printReceipt(data.sale_id); // Passa apenas o ID da venda
                         }
                         clearCurrentSale();
                     } else {
@@ -505,74 +505,13 @@
                 });
             }
 
-            function printReceipt(details) {
-                const receiptWindow = window.open('', 'PRINT', 'height=600,width=800');
+            function printReceipt(saleId) {
+                // Constrói a URL para a nova view de cupom.
+                // O '999' é um placeholder que será substituído pelo ID real.
+                const url = "{% url 'sales:sale_receipt' 999 %}".replace('999', saleId);
                 
-                if (!receiptWindow) {
-                    alert("Não foi possível abrir a janela de impressão. Verifique se o seu navegador está bloqueando pop-ups e tente novamente.");
-                    return;
-                }
-
-                receiptWindow.document.write('<html><head><title>Cupom</title>');
-                receiptWindow.document.write(`
-                    <style>
-                        body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px; width: 80mm; font-size: 12px; }
-                        .receipt { width: 100%; }
-                        .center { text-align: center; }
-                        .line { border-top: 1px dashed #000; margin: 5px 0; }
-                        .item-row, .total-row { display: flex; justify-content: space-between; }
-                        .item-details { margin-left: 10px; }
-                        @media print {
-                            body { margin: 0; padding: 0; }
-                            .no-print { display: none; }
-                        }
-                    </style>
-                `);
-                receiptWindow.document.write('</head><body>');
-                
-                let receiptHtml = '<div class="receipt">';
-                receiptHtml += '<div class="center"><strong>NOME DA SUA LOJA</strong><br>CUPOM NÃO FISCAL</div>';
-                receiptHtml += '<div class="line"></div>';
-                receiptHtml += `<div>Data: ${details.date}</div>`;
-                receiptHtml += `<div>Venda #: ${details.id}</div>`;
-                receiptHtml += `<div>Cliente: ${details.customer}</div>`;
-                receiptHtml += '<div class="line"></div>';
-                receiptHtml += '<strong>ITENS:</strong><br>';
-                
-                details.items.forEach(item => {
-                    receiptHtml += `<div>${item.name}</div>`;
-                    receiptHtml += `<div class="item-details">${item.quantity} x R$ ${item.unit_price} = R$ ${item.subtotal}</div>`;
-                });
-
-                receiptHtml += '<div class="line"></div>';
-                receiptHtml += `<div class="total-row"><span>Sub-total:</span><span>R$ ${details.total_amount}</span></div>`;
-                
-                // Converte o desconto para número para fazer a verificação
-                const discountValue = parseFloat(details.discount.replace(',', '.'));
-                if (discountValue > 0) {
-                    receiptHtml += `<div class="total-row"><span>Desconto:</span><span>- R$ ${details.discount}</span></div>`;
-                }
-
-                receiptHtml += `<div class="total-row"><strong>TOTAL:</strong><strong>R$ ${details.final_amount}</strong></div>`;
-                receiptHtml += '<div class="line"></div>';
-                receiptHtml += '<strong>PAGAMENTOS:</strong><br>';
-                
-                details.payments.forEach(p => {
-                    receiptHtml += `<div class="total-row"><span>${p.method}</span><span>R$ ${p.amount}</span></div>`;
-                });
-
-                receiptHtml += `<div class="total-row"><strong>Total Pago:</strong><strong>R$ ${details.total_paid}</strong></div>`;
-                receiptHtml += `<div class="total-row"><strong>Troco:</strong><strong>R$ ${details.change_amount}</strong></div>`;
-                receiptHtml += '<div class="line"></div>';
-                receiptHtml += '<div class="center">Obrigado!</div>';
-                receiptHtml += '</div>';
-
-                receiptWindow.document.write(receiptHtml);
-                receiptWindow.document.write('<button class="no-print" onclick="window.print(); window.close();">Imprimir</button>');
-                receiptWindow.document.write('</body></html>');
-                receiptWindow.document.close();
-                receiptWindow.focus();
-                setTimeout(() => { receiptWindow.print(); receiptWindow.close(); }, 250);
+                // Abre a URL em uma nova janela. O 'onload' no template do cupom cuidará da impressão.
+                window.open(url, 'PRINT', 'height=600,width=400');
             }
 
             function debounce(func, delay) {

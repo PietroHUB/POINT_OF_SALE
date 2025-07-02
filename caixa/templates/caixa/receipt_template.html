@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Cupom Venda #{{ sale.id }}</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px; width: 80mm; font-size: 12px; }
+        .receipt { width: 100%; }
+        .center { text-align: center; }
+        .line { border-top: 1px dashed #000; margin: 5px 0; }
+        .item-row, .total-row { display: flex; justify-content: space-between; }
+        .item-details { margin-left: 10px; }
+        @media print {
+            body { margin: 0; padding: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body onload="window.print(); window.close();">
+
+    <div class="receipt">
+        <div class="center"><strong>NOME DA SUA LOJA</strong><br>CUPOM NÃO FISCAL</div>
+        <div class="line"></div>
+        <div>Data: {{ sale.created_at|date:"d/m/Y H:i:s" }}</div>
+        <div>Venda #: {{ sale.id }}</div>
+        <div>Cliente: {% if sale.customer %}{{ sale.customer.name }}{% else %}Consumidor Padrão{% endif %}</div>
+        <div class="line"></div>
+        <strong>ITENS:</strong><br>
+        
+        {% for item in sale.items.all %}
+            <div>{{ item.product.name }}</div>
+            <div class="item-details">{{ item.quantity|floatformat:2 }} x R$ {{ item.unit_price|floatformat:2 }} = R$ {{ item.subtotal|floatformat:2 }}</div>
+        {% endfor %}
+
+        <div class="line"></div>
+        <div class="total-row"><span>Sub-total:</span><span>R$ {{ sale.total_amount|floatformat:2 }}</span></div>
+        
+        {% if sale.discount > 0 %}
+            <div class="total-row"><span>Desconto:</span><span>- R$ {{ sale.discount|floatformat:2 }}</span></div>
+        {% endif %}
+
+        <div class="total-row"><strong>TOTAL:</strong><strong>R$ {{ sale.final_amount|floatformat:2 }}</strong></div>
+        <div class="line"></div>
+        <strong>PAGAMENTOS:</strong><br>
+        
+        {% for payment in sale.payments.all %}
+            <div class="total-row"><span>{{ payment.payment_method.description }}</span><span>R$ {{ payment.amount|floatformat:2 }}</span></div>
+        {% endfor %}
+
+        <div class="total-row"><strong>Total Pago:</strong><strong>R$ {{ total_paid|floatformat:2 }}</strong></div>
+        <div class="total-row"><strong>Troco:</strong><strong>R$ {{ sale.change_amount|floatformat:2 }}</strong></div>
+        <div class="line"></div>
+        <div class="center">Obrigado!</div>
+    </div>
+
+</body>
+</html>
