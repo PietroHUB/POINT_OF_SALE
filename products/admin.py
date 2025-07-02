@@ -15,6 +15,7 @@ class ProductAdmin(admin.ModelAdmin):
         'created_at',
         'updated_at'
     )
+    list_display_links = ('name',)
     search_fields = ('name', 'internal_code', 'barcode', 'description')
     list_filter = ('created_at', 'updated_at')
     ordering = ('name',)

@@ -31,6 +31,18 @@ class Sale(models.Model):
         decimal_places=2,
         default=Decimal('0.00')
     )
+    discount = models.DecimalField(
+        _("Desconto (R$)"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
+    final_amount = models.DecimalField(
+        _("Valor Final"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
     change_amount = models.DecimalField(
         _("Valor do Troco"),
         max_digits=10,
@@ -47,7 +59,12 @@ class Sale(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Venda #{self.id} - R$ {self.total_amount}"
+        return f"Venda #{self.id} - R$ {self.final_amount}"
+
+    def save(self, *args, **kwargs):
+        # Garante que o valor final seja sempre o total menos o desconto
+        self.final_amount = self.total_amount - self.discount
+        super().save(*args, **kwargs)
 
 class SalePayment(models.Model):
     sale = models.ForeignKey(

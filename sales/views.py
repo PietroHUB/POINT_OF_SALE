@@ -60,13 +60,17 @@ def finalize_sale(request):
         items_data = data.get('items', [])
         payments_data = data.get('payments', [])
         customer_id = data.get('customer_id')
-        point_of_sale_id = data.get('point_of_sale_id') # Novo
+        point_of_sale_id = data.get('point_of_sale_id')
+        discount_str = data.get('discount_amount', '0.00')
+        try:
+            discount_amount = Decimal(discount_str)
+        except InvalidOperation:
+            raise SaleValidationError("Valor de desconto inválido.")
 
         if not all([items_data, payments_data, point_of_sale_id]):
             raise SaleValidationError("Dados de itens, pagamento ou ponto de venda faltando.", status_code=400)
 
         with transaction.atomic():
-            # --- 1. Valida e busca o cliente e o POS ---
             pos_instance = PointOfSale.objects.get(id=point_of_sale_id)
             customer_instance = None
             if customer_id:
@@ -75,54 +79,68 @@ def finalize_sale(request):
                 except Customer.DoesNotExist:
                     raise SaleValidationError(f"Cliente com ID {customer_id} não encontrado.")
 
-            # --- 2. Cria a venda inicial ---
-            sale = Sale.objects.create(
-                customer=customer_instance,
-                point_of_sale=pos_instance
-            )
-            logger.info("Venda #%s criada para o cliente: %s no POS: %s", sale.id, customer_instance, pos_instance)
+            calculated_subtotal = Decimal('0.00')
+            product_updates = []
+            sale_items_to_create = []
 
-            # --- 3. Processa os itens da venda ---
-            calculated_total = Decimal('0.00')
             for item_data in items_data:
                 product = Product.objects.get(id=item_data.get('productId'))
                 quantity = Decimal(item_data.get('quantity'))
-                
+                unit_price = Decimal(item_data.get('price'))
+
                 if product.stock_quantity < quantity:
                     raise SaleValidationError(f'Estoque insuficiente para "{product.name}".')
 
-                sale_item = SaleItem.objects.create(
-                    sale=sale,
+                item_subtotal = quantity * unit_price
+                calculated_subtotal += item_subtotal
+
+                # --- CORREÇÃO APLICADA AQUI ---
+                # Adiciona o 'subtotal' manualmente ao objeto antes do bulk_create
+                sale_items_to_create.append(SaleItem(
                     product=product,
                     quantity=quantity,
-                    unit_price=Decimal(item_data.get('price'))
-                )
-                calculated_total += sale_item.subtotal
+                    unit_price=unit_price,
+                    subtotal=item_subtotal # Garante que o campo não seja nulo
+                ))
+                
                 product.stock_quantity -= quantity
-                product.save()
+                product_updates.append(product)
 
-            # --- 4. Atualiza o total da venda ---
-            sale.total_amount = calculated_total
-            sale.save()
+            sale = Sale.objects.create(
+                customer=customer_instance,
+                point_of_sale=pos_instance,
+                total_amount=calculated_subtotal,
+                discount=discount_amount
+            )
+            logger.info("Venda #%s criada. Subtotal: %s, Desconto: %s, Valor Final: %s", sale.id, sale.total_amount, sale.discount, sale.final_amount)
 
-            # --- 5. Processa os pagamentos ---
+            for item in sale_items_to_create:
+                item.sale = sale
+            SaleItem.objects.bulk_create(sale_items_to_create)
+
+            Product.objects.bulk_update(product_updates, ['stock_quantity'])
+
             total_paid = Decimal('0.00')
+            payments_to_create = []
             for payment_data in payments_data:
                 payment_method = PaymentMethod.objects.get(id=payment_data.get('payment_method_id'))
                 amount = Decimal(payment_data.get('amount'))
-                SalePayment.objects.create(sale=sale, payment_method=payment_method, amount=amount)
+                payments_to_create.append(SalePayment(sale=sale, payment_method=payment_method, amount=amount))
                 total_paid += amount
-
-            # --- 6. Valida o total pago e calcula o troco ---
-            if total_paid < sale.total_amount:
-                raise SaleValidationError(f"Pagamento (R$ {total_paid}) insuficiente para o total (R$ {sale.total_amount}).")
             
-            sale.change_amount = total_paid - sale.total_amount
-            sale.save()
+            SalePayment.objects.bulk_create(payments_to_create)
 
-            logger.info("Venda #%s finalizada com sucesso. Total: %s, Troco: %s", sale.id, sale.total_amount, sale.change_amount)
+            if total_paid < sale.final_amount:
+                raise SaleValidationError(f"Pagamento (R$ {total_paid}) insuficiente para o total com desconto (R$ {sale.final_amount}).")
+            
+            sale.change_amount = total_paid - sale.final_amount
+            sale.save(update_fields=['change_amount'])
 
-        # --- 7. Prepara os dados de retorno para o cupom ---
+            logger.info("Venda #%s finalizada com sucesso. Total Pago: %s, Troco: %s", sale.id, total_paid, sale.change_amount)
+
+            sale_items_for_receipt = sale.items.all()
+            sale_payments_for_receipt = sale.payments.all()
+
             sale_details = {
                 'id': sale.id,
                 'date': sale.created_at.strftime('%d/%m/%Y %H:%M:%S'),
@@ -132,17 +150,17 @@ def finalize_sale(request):
                     'quantity': f"{item.quantity:.2f}".replace('.', ','),
                     'unit_price': f"{item.unit_price:.2f}".replace('.', ','),
                     'subtotal': f"{item.subtotal:.2f}".replace('.', ',')
-                } for item in sale.items.all()],
+                } for item in sale_items_for_receipt],
                 'payments': [{
                     'method': p.payment_method.description,
                     'amount': f"{p.amount:.2f}".replace('.', ',')
-                } for p in sale.payments.all()],
+                } for p in sale_payments_for_receipt],
                 'total_amount': f"{sale.total_amount:.2f}".replace('.', ','),
+                'discount': f"{sale.discount:.2f}".replace('.', ','),
+                'final_amount': f"{sale.final_amount:.2f}".replace('.', ','),
                 'total_paid': f"{total_paid:.2f}".replace('.', ','),
                 'change_amount': f"{sale.change_amount:.2f}".replace('.', ',')
             }
-
-            logger.info("Venda #%s finalizada com sucesso. Total: %s, Troco: %s", sale.id, sale.total_amount, sale.change_amount)
 
         return JsonResponse({'status': 'success', 'sale_id': sale.id, 'sale_details': sale_details})
 
