@@ -343,7 +343,7 @@
             const fixedRadio = document.getElementById('discount-type-fixed');
 
             // --- Dados e Estado ---
-            const productsData = [ {% for product in products %}{ id: "{{ product.id }}", name: "{{ product.name|escapejs }}", price: "{{ product.price }}", internal_code: "{{ product.internal_code|escapejs }}", barcode: "{{ product.barcode|escapejs }}" }, {% endfor %} ];
+            const productsData = [ {% for product in products %}{ id: "{{ product.id }}", name: "{{ product.name|escapejs }}", price: "{{ product.price|stringformat:".2f" }}", internal_code: "{{ product.internal_code|escapejs }}", barcode: "{{ product.barcode|escapejs }}" }, {% endfor %} ];
             let currentSaleTotal = 0.00, saleItemsArray = [], nextSaleItemId = 1, pendingQuantity = 1, currentPaymentsArray = [], saleTotalForModal = 0, currentDiscountAmount = 0;
             let lastActiveElement = null; // Variável para guardar o foco
 
