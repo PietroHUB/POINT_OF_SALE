@@ -747,7 +747,7 @@
                 }
             });
 
-            // --- LÓGICA DA CALCULADORA (CORRIGIDA) ---
+            // --- LÓGICA DA CALCULADORA (MODIFICADA PARA ARREDONDAR) ---
             (function() {
                 const modal = document.getElementById('calculatorModal');
                 if (!modal) return;
@@ -759,7 +759,8 @@
                 let waitingForSecondOperand = false;
 
                 function updateDisplay() {
-                    display.textContent = currentInput.replace('.', ',');
+                    // Garante que o display sempre mostre um formato numérico com vírgula
+                    display.textContent = String(currentInput).replace('.', ',');
                 }
 
                 function resetCalculator() {
@@ -768,6 +769,14 @@
                     operator = null;
                     waitingForSecondOperand = false;
                     updateDisplay();
+                }
+
+                // Nova função para arredondar para cima com 2 casas decimais
+                function roundUpTo2Decimals(num) {
+                    // Lida com imprecisões de ponto flutuante (ex: 0.1 + 0.2)
+                    const preciseNum = Number(num.toPrecision(12));
+                    // Multiplica, arredonda para cima, e divide para obter o resultado
+                    return Math.ceil(preciseNum * 100) / 100;
                 }
 
                 function inputDigit(digit) {
@@ -805,9 +814,10 @@
                         firstOperand = inputValue;
                     } else if (operator) {
                         const result = calculate(firstOperand, inputValue, operator);
-                        const formattedResult = String(Number(result.toPrecision(12)));
-                        currentInput = formattedResult;
-                        firstOperand = result;
+                        const roundedResult = roundUpTo2Decimals(result); // Arredonda aqui
+
+                        currentInput = String(roundedResult);
+                        firstOperand = roundedResult;
                         updateDisplay();
                     }
 
@@ -832,9 +842,9 @@
                     }
                     const secondOperand = parseFloat(currentInput.replace(',', '.'));
                     const result = calculate(firstOperand, secondOperand, operator);
-                    const formattedResult = String(Number(result.toPrecision(12)));
-                    
-                    currentInput = formattedResult;
+                    const roundedResult = roundUpTo2Decimals(result); // Arredonda aqui
+
+                    currentInput = roundedResult.toFixed(2); // Formata para ter sempre 2 casas decimais
                     operator = null;
                     firstOperand = null;
                     waitingForSecondOperand = false;
@@ -926,8 +936,12 @@
 
                 // Atalhos numéricos para pagamento (apenas no modal de finalização)
                 if (isFinalizeModalOpen) {
+                    // Adiciona uma verificação para ver se a calculadora está aberta
+                    const isCalculatorOpen = calculatorModalElement && calculatorModalElement.classList.contains('show');
+
                     const key = parseInt(e.key, 10);
-                    if (!isNaN(key) && key > 0 && key <= 9) {
+                    // SÓ executa o atalho se a calculadora NÃO estiver aberta
+                    if (!isCalculatorOpen && !isNaN(key) && key > 0 && key <= 9) {
                         e.preventDefault();
                         const paymentButton = paymentMethodButtons[key - 1];
                         if (paymentButton) paymentButton.click();
